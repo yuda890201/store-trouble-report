@@ -47,23 +47,19 @@
       <i class="fa-solid fa-triangle-exclamation text-4xl text-white"></i>
     </div>
     <h1 class="mt-5 text-lg font-bold tracking-tight">現場トラブル・不具合<br>クイック報告</h1>
-    <p class="mt-2 text-xs text-slate-400">店舗のアカウントでログインしてください</p>
+    <p class="mt-2 text-xs text-slate-400">店舗コードを入力してください</p>
 
-    <form id="login-form" class="mt-6 space-y-3 text-left">
-      <div>
-        <label for="login-email" class="text-[11px] font-bold text-slate-400">メールアドレス</label>
-        <input type="email" id="login-email" name="email" autocomplete="username"
-          inputmode="email" autocapitalize="none" spellcheck="false" required
-          placeholder="store@example.com"
-          class="mt-1 w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm placeholder:text-slate-600 focus:border-orange-500 focus:outline-none">
-      </div>
-      <div>
-        <label for="login-password" class="text-[11px] font-bold text-slate-400">パスワード</label>
-        <input type="password" id="login-password" name="password" autocomplete="current-password" required
-          class="mt-1 w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm focus:border-orange-500 focus:outline-none">
+    <form id="login-form" class="mt-6 space-y-3">
+      <label for="login-code" class="block text-left text-[11px] font-bold text-slate-400">店舗コード</label>
+      <div class="flex items-stretch rounded-xl border-2 border-slate-700 bg-slate-900 overflow-hidden focus-within:border-orange-500">
+        <span class="px-4 flex items-center text-xl font-bold text-slate-400 bg-slate-800 select-none">fm</span>
+        <input type="text" id="login-code" name="code" inputmode="numeric" pattern="[0-9]*"
+          autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="8" required
+          placeholder="0000"
+          class="flex-1 w-full bg-transparent px-3 py-3.5 text-xl font-bold tracking-widest tabular-nums text-white placeholder:text-slate-700 focus:outline-none">
       </div>
       <button type="submit" id="btn-login"
-        class="w-full py-3.5 bg-orange-600 active:bg-orange-700 disabled:opacity-50 text-white font-bold rounded-xl text-sm">
+        class="w-full py-3.5 bg-orange-600 active:bg-orange-700 disabled:opacity-50 text-white font-bold rounded-xl text-base">
         ログイン
       </button>
     </form>
@@ -317,8 +313,16 @@ const FIREBASE_CONFIG = {
 };
 /* === FIREBASE_CONFIG_END === */
 
-// アカウントは店舗ごとに Firebase Authentication へ登録する。
-// メールアドレスもパスワードもこのコードには持たない。照合は Firebase 側で行われる。
+// ログインは店舗コード（fm + 数字）だけで行う。
+// コードからダミーのメールアドレスを組み立てて Firebase Authentication に渡す。
+// このドメインへメールを送ることはない。照合は Firebase のサーバー側で行われる。
+//
+//   画面入力 fm0001  →  メール fm0001@fm.example.com  /  パスワード fm0001
+//
+// コード自体がその店舗の合言葉になる。コードはここには書かない。
+const LOGIN_PREFIX = "fm";
+const LOGIN_DOMAIN = "fm.example.com";
+const LOGIN_DIGITS = /^[0-9]{3,8}$/;
 
 const COLLECTION      = "trouble_reports";
 const HISTORY_LIMIT   = 50;
@@ -421,7 +425,7 @@ const LS_PHRASES   = "str.saved_phrases";
 const LS_STORE     = "str.store_name";
 const LS_REPORTERS = "str.reporters";
 const LS_REPORTER  = "str.last_reporter";
-const LS_EMAIL     = "str.login_email";
+
 
 /* ====================== ユーティリティ ====================== */
 const $  = (id) => document.getElementById(id);
@@ -465,11 +469,11 @@ function toast(message, kind = "ok") {
 let authBusy = false;
 
 const AUTH_ERRORS = {
-  "auth/invalid-credential":     "メールアドレスかパスワードが違います",
-  "auth/wrong-password":         "パスワードが違います",
-  "auth/user-not-found":         "このメールアドレスのアカウントがありません",
-  "auth/invalid-email":          "メールアドレスの形式が正しくありません",
-  "auth/user-disabled":          "このアカウントは無効になっています",
+  "auth/invalid-credential":     "店舗コードが違います",
+  "auth/wrong-password":         "店舗コードが違います",
+  "auth/user-not-found":         "この店舗コードは登録されていません",
+  "auth/invalid-email":          "店舗コードの形式が正しくありません",
+  "auth/user-disabled":          "この店舗コードは使えなくなっています",
   "auth/too-many-requests":      "試行回数が多すぎます。しばらく待ってください",
   "auth/network-request-failed": "ネットワークに接続できません",
 };
@@ -487,18 +491,17 @@ $("login-form").addEventListener("submit", async (event) => {
   if (SDK_ERROR)   { failAuth("通信に失敗しました。接続を確認してください"); return; }
   if (!CONFIGURED) { failAuth("Firebase が未設定です"); return; }
 
-  const email    = $("login-email").value.trim();
-  const password = $("login-password").value;
-  if (!email || !password) { failAuth("メールアドレスとパスワードを入力してください"); return; }
+  const digits = $("login-code").value.replace(/[^0-9]/g, "");
+  if (!LOGIN_DIGITS.test(digits)) { failAuth("店舗コードの数字を入力してください"); return; }
+  const code = LOGIN_PREFIX + digits;
 
   authBusy = true;
   $("btn-login").disabled = true;
   $("auth-msg").innerHTML = '<span class="text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-1"></i>確認中…</span>';
   try {
     await setPersistence(auth, browserLocalPersistence);
-    await signInWithEmailAndPassword(auth, email, password);
-    lsSet(LS_EMAIL, email);            // 次回は入力済みの状態で開く
-    $("login-password").value = "";
+    await signInWithEmailAndPassword(auth, `${code}@${LOGIN_DOMAIN}`, code);
+    $("login-code").value = "";
     $("auth-msg").textContent = "";
   } catch (err) {
     failAuth(AUTH_ERRORS[err.code] || "ログインできませんでした");
@@ -850,7 +853,8 @@ $("btn-now").addEventListener("click", () => {
 $("btn-settings").addEventListener("click", () => {
   $("store_name").value       = lsGet(LS_STORE, "");
   $("webhook_endpoint").value = lsGet(LS_WEBHOOK, "");
-  $("who").textContent = (auth && auth.currentUser) ? auth.currentUser.email : "-";
+  const email = (auth && auth.currentUser) ? auth.currentUser.email : "";
+  $("who").textContent = email ? email.split("@")[0] : "-";
   show($("settings-modal"));
 });
 $("btn-settings-close").addEventListener("click", () => hide($("settings-modal")));
@@ -1150,7 +1154,6 @@ function resetForm() {
 }
 
 /* ====================== 起動 ====================== */
-$("login-email").value = lsGet(LS_EMAIL, "");
 renderFixedChips();
 renderSavedChips();
 renderUrgency();
@@ -1182,7 +1185,7 @@ if (SDK_ERROR) {
       stopHistory();
       hide($("app"));
       show($("auth-screen"));
-      $("login-password").value = "";
+      $("login-code").value = "";
       $("auth-msg").textContent = "";
     }
   });
