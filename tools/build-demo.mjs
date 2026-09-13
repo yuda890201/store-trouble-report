@@ -34,9 +34,9 @@ swap(
 );
 
 // 2) 設定済み扱いにして認証画面を通す
-swap('apiKey:            ""',                'apiKey:            "demo"',                 "apiKey");
-swap('projectId:         ""',                'projectId:         "demo"',                 "projectId");
-swap('const STORE_ACCOUNT_EMAIL = "";',      'const STORE_ACCOUNT_EMAIL = "demo@example.com";', "store email");
+// 本番の値が入っていても、デモでは必ずダミーに差し替える
+swap(/apiKey:\s+"[^"]*"/,    'apiKey:            "demo"', "apiKey");
+swap(/projectId:\s+"[^"]*"/, 'projectId:         "demo"', "projectId");
 
 // 3) デモであることを画面上で分かるようにする
 swap(
@@ -45,8 +45,8 @@ swap(
   "title",
 );
 swap(
-  '<p class="mt-2 text-xs text-slate-400">店舗共通PINを入力してください</p>',
-  '<p class="mt-2 text-xs text-amber-300">デモ版です。好きな4桁の数字でログインできます</p>' +
+  '<p class="mt-2 text-xs text-slate-400">店舗のアカウントでログインしてください</p>',
+  '<p class="mt-2 text-xs text-amber-300">デモ版です。どんなメールアドレスとパスワードでも入れます</p>' +
   '<p class="mt-1 text-[10px] text-slate-500">入力した内容はブラウザを閉じると消え、どこにも保存されません</p>',
   "auth hint",
 );
