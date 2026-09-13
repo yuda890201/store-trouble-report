@@ -86,13 +86,3 @@ export const updateDoc = async (ref, patch) => {
   emit();
 };
 export const onSnapshot = (_q, next) => { listener = next; emit(); return () => { listener = null; }; };
-
-/* ---- Storage ---- */
-const uploaded = new Map();
-export const getStorage = () => ({});
-export const ref = (_s, path) => ({ path });
-export const uploadBytes = async (fileRef, blob) => { uploaded.set(fileRef.path, blob); return { ref: fileRef }; };
-export const getDownloadURL = async (fileRef) => {
-  const blob = uploaded.get(fileRef.path);
-  return blob ? URL.createObjectURL(blob) : "";
-};

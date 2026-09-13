@@ -11,7 +11,7 @@
     3. 使用するプロジェクトの選択（または新規作成）
     4. ウェブアプリの登録と設定値の取得
     5. index.html への設定値の書き込み
-    6. Firestore と Storage のセキュリティルールの適用
+    6. Firestore の作成とリージョンの確認、ルールの適用
     7. 店舗共通アカウントの作成（PIN はこの画面で入力します）
     8. コミットして push（GitHub Pages へ自動デプロイ）
 
@@ -274,7 +274,7 @@ if (-not $ProjectId) {
 if ($usingExisting) {
   Write-Host ""
   Write-Warn2 "既存のプロジェクト「$ProjectId」を選びました。"
-  Write-Info "このあと Firestore と Storage のルールを、このリポジトリの内容で置き換えます。"
+  Write-Info "このあと Firestore のルールを、このリポジトリの内容で置き換えます。"
   Write-Info "trouble_reports 以外へのアクセスを拒否する設定が入っているため、同じプロジェクトで"
   Write-Info "動いている別のアプリがあると、そのアプリがデータを読み書きできなくなります。"
   $answer = Read-Host "    それでも続けますか？ 続ける場合は yes と入力してください"
@@ -462,39 +462,6 @@ if ($LASTEXITCODE -eq 0) {
   Write-Fail "Firestore ルールを適用できませんでした"
   Show-FirebaseDebugLog
   exit 1
-}
-
-# ============================================================ 7. Storage --
-Write-Step "Storage を用意します"
-
-firebase deploy --only storage --project $ProjectId
-if ($LASTEXITCODE -eq 0) {
-  Write-Ok "Storage ルールを適用しました"
-} else {
-  Write-Warn2 "Storage がまだ作られていません"
-  Show-FirebaseDebugLog
-  Stop-WithGuide "Storage の作成だけは、コンソールでの操作が必要です。" @(
-    "Google が課金の同意を人に求めるため、ここは自動化できません。1回だけです。",
-    "",
-    "  1) 次のページを開いてください",
-    "       https://console.firebase.google.com/project/$ProjectId/storage",
-    "",
-    "  2) 「始める」を押してください",
-    "",
-    "  3) Blaze プランへの変更を求められます",
-    "       2024年以降に作られたプロジェクトでは Storage に Blaze が必要です。",
-    "       従量課金ですが無料枠は残ります（保存5GB、ダウンロード1GB/日など）。",
-    "       このアプリの規模なら請求は発生しません。",
-    "       心配であれば予算アラートを設定してください:",
-    "       https://console.cloud.google.com/billing/budgets?project=$ProjectId",
-    "",
-    "  4) 本番環境モードを選び、ロケーションは $Location にしてください",
-    "       Firestore と揃えておくと、写真の読み書きが速くなります。",
-    "",
-    "  Blaze にしたくない場合は、写真を Storage ではなく Firestore に",
-    "  戻す作りに変更できます（1枚のみ・容量の上限あり）。その場合は",
-    "  この画面を閉じて、その旨を伝えてください。"
-  )
 }
 
 # ==================================================== 7. 店舗アカウント --

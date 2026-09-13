@@ -310,9 +310,9 @@ const PIN_LENGTH = 4;
 
 const COLLECTION      = "trouble_reports";
 const HISTORY_LIMIT   = 50;
-const MAX_PHOTOS      = 4;
-const PHOTO_MAX_BYTES = 1200000;  // 1枚あたりの上限。Cloud Storage 側に文字数制限はない
-const STORAGE_PREFIX  = "trouble_reports";
+const MAX_PHOTOS      = 1;
+// Firestore の 1 ドキュメント上限(1MiB)に対する安全圏。写真はここに直接入れる。
+const PHOTO_MAX_CHARS = 700000;
 
 /* ====================== Firebase SDK ======================
    静的 import だと SDK の取得に失敗した時点でモジュールごと止まり、
@@ -322,35 +322,30 @@ let SDK_ERROR = null;
 let initializeApp, getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
     setPersistence, browserLocalPersistence,
     getFirestore, collection, doc, addDoc, updateDoc, query, orderBy, limit,
-    onSnapshot, serverTimestamp,
-    getStorage, storageRef, uploadBytes, getDownloadURL;
+    onSnapshot, serverTimestamp;
 
 try {
-  const [appModule, authModule, storeModule, filesModule] = await Promise.all([
+  const [appModule, authModule, storeModule] = await Promise.all([
     import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"),
     import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"),
     import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"),
-    import("https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js"),
   ]);
   ({ initializeApp } = appModule);
   ({ getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
      setPersistence, browserLocalPersistence } = authModule);
   ({ getFirestore, collection, doc, addDoc, updateDoc, query, orderBy, limit,
      onSnapshot, serverTimestamp } = storeModule);
-  ({ getStorage, uploadBytes, getDownloadURL } = filesModule);
-  storageRef = filesModule.ref;
 } catch (err) {
   SDK_ERROR = err;
   console.error("Firebase SDK を読み込めませんでした", err);
 }
 
 const CONFIGURED = Boolean(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId && STORE_ACCOUNT_EMAIL);
-let auth = null, db = null, storage = null;
+let auth = null, db = null;
 if (CONFIGURED && !SDK_ERROR) {
   const fb = initializeApp(FIREBASE_CONFIG);
-  auth    = getAuth(fb);
-  db      = getFirestore(fb);
-  storage = getStorage(fb);
+  auth = getAuth(fb);
+  db   = getFirestore(fb);
 }
 
 /* ====================== マスタデータ ====================== */
@@ -523,7 +518,7 @@ const form = {
   category: "",
   quick_trouble_preset: "",
   urgency: DEFAULT_URGENCY,
-  photos: [],          // { blob, previewUrl, size }
+  photos: [],          // { dataUrl } を最大 MAX_PHOTOS 件
 };
 let step = 0;
 
@@ -756,7 +751,7 @@ function rememberReporter(name) {
 }
 
 /* ====================== 写真 ====================== */
-// Cloud Storage に上げるので Base64 にはせず Blob のまま扱う。
+// Firestore のドキュメントに直接入れるので、data URL の文字数を基準に圧縮する。
 async function compressPhoto(file) {
   const dataUrl = await new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -772,7 +767,7 @@ async function compressPhoto(file) {
     image.src = dataUrl;
   });
 
-  for (const maxDim of [1600, 1280, 1024, 800]) {
+  for (const maxDim of [1280, 1024, 800, 640]) {
     const scale  = Math.min(1, maxDim / Math.max(img.width, img.height));
     const canvas = document.createElement("canvas");
     canvas.width  = Math.max(1, Math.round(img.width  * scale));
@@ -781,9 +776,9 @@ async function compressPhoto(file) {
     ctx.fillStyle = "#ffffff";                      // 透過PNG対策
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    for (const quality of [0.82, 0.72, 0.6, 0.48]) {
-      const blob = await new Promise((r) => canvas.toBlob(r, "image/jpeg", quality));
-      if (blob && blob.size <= PHOTO_MAX_BYTES) return blob;
+    for (const quality of [0.72, 0.6, 0.48, 0.38]) {
+      const out = canvas.toDataURL("image/jpeg", quality);
+      if (out.length <= PHOTO_MAX_CHARS) return out;
     }
   }
   throw new Error("画像が大きすぎます。別の写真でお試しください");
@@ -794,29 +789,26 @@ function renderPhotos() {
   grid.classList.toggle("is-hidden", form.photos.length === 0);
   grid.innerHTML = form.photos.map((p, i) => `
     <div class="relative">
-      <img src="${p.previewUrl}" alt="添付写真 ${i + 1}"
+      <img src="${p.dataUrl}" alt="添付写真 ${i + 1}"
         class="w-full aspect-square object-cover rounded-xl border border-slate-700 bg-black">
       <button type="button" data-remove-photo="${i}" aria-label="${i + 1}枚目の写真を削除"
         class="absolute top-1.5 right-1.5 w-8 h-8 rounded-full bg-black/70 backdrop-blur flex items-center justify-center text-white active:bg-black">
         <i class="fa-solid fa-xmark text-xs"></i>
       </button>
       <span class="absolute bottom-1.5 left-1.5 text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/70 text-slate-300">
-        ${Math.round(p.size / 1024)} KB
+        ${Math.round(p.dataUrl.length / 1024)} KB
       </span>
     </div>`).join("");
 
   const full = form.photos.length >= MAX_PHOTOS;
   $("photo-actions").classList.toggle("is-hidden", full);
-  $("photo-count").textContent = form.photos.length
-    ? `${form.photos.length} / ${MAX_PHOTOS} 枚`
-    : `任意・最大${MAX_PHOTOS}枚`;
+  $("photo-count").textContent = form.photos.length ? "添付済み" : "任意";
 }
 
 $("photo-grid").addEventListener("click", (e) => {
   const btn = e.target.closest("[data-remove-photo]");
   if (!btn) return;
-  const [removed] = form.photos.splice(Number(btn.dataset.removePhoto), 1);
-  if (removed) URL.revokeObjectURL(removed.previewUrl);
+  form.photos.splice(Number(btn.dataset.removePhoto), 1);
   renderPhotos();
 });
 
@@ -833,8 +825,7 @@ async function handleFiles(input) {
   show($("photo-busy"));
   for (const file of accepted) {
     try {
-      const blob = await compressPhoto(file);
-      form.photos.push({ blob, previewUrl: URL.createObjectURL(blob), size: blob.size });
+      form.photos.push({ dataUrl: await compressPhoto(file) });
       renderPhotos();
     } catch (err) {
       toast(err.message, "err");
@@ -849,7 +840,6 @@ $("file-camera").addEventListener("change", (e) => handleFiles(e.target));
 $("file-album").addEventListener("change",  (e) => handleFiles(e.target));
 
 function clearPhotos() {
-  form.photos.forEach((p) => URL.revokeObjectURL(p.previewUrl));
   form.photos = [];
   renderPhotos();
 }
@@ -1067,30 +1057,21 @@ async function notifyWebhook(url, record) {
     `報告者: ${record.reporter}\n` +
     `発生: ${record.report_time.replace("T", " ")}\n` +
     `内容: ${record.comment}` +
-    (record.photos.length ? `\n写真 ${record.photos.length} 枚` : "");
+    (record.photo_data ? "\n（写真あり）" : "");
+  const { photo_data, ...withoutPhoto } = record;   // 画像本体は通知に載せない
   try {
     await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: text, text, report: record }),
+      body: JSON.stringify({
+        content: text, text,
+        report: { ...withoutPhoto, has_photo: Boolean(photo_data) },
+      }),
     });
   } catch (err) {
     // 通知先の CORS 設定次第で失敗する。報告そのものは保存済みなので握りつぶす。
     console.warn("webhook notification failed", err);
   }
-}
-
-async function uploadPhotos(photos) {
-  const stamp = Date.now();
-  const out = [];
-  for (let i = 0; i < photos.length; i++) {
-    $("submit-label").textContent = `写真を送信中 ${i + 1}/${photos.length}`;
-    const path = `${STORAGE_PREFIX}/${stamp}-${i}.jpg`;
-    const fileRef = storageRef(storage, path);
-    await uploadBytes(fileRef, photos[i].blob, { contentType: "image/jpeg" });
-    out.push({ url: await getDownloadURL(fileRef), path });
-  }
-  return out;
 }
 
 let submitting = false;
@@ -1117,22 +1098,20 @@ $("btn-submit").addEventListener("click", async () => {
 
   const webhook = lsGet(LS_WEBHOOK, "");
 
-  try {
-    const photos = await uploadPhotos(form.photos);
-    $("submit-label").textContent = "送信中…";
+  const record = {
+    target_type:          form.target_type,
+    category:             form.category,
+    quick_trouble_preset: form.quick_trouble_preset || "直接入力",
+    urgency:              form.urgency,
+    reporter,
+    store_name:           lsGet(LS_STORE, ""),
+    photo_data:           form.photos.length ? form.photos[0].dataUrl : "",
+    comment,
+    report_time:          reportTime,
+    webhook_endpoint:     webhook,
+  };
 
-    const record = {
-      target_type:          form.target_type,
-      category:             form.category,
-      quick_trouble_preset: form.quick_trouble_preset || "直接入力",
-      urgency:              form.urgency,
-      reporter,
-      store_name:           lsGet(LS_STORE, ""),
-      photos,
-      comment,
-      report_time:          reportTime,
-      webhook_endpoint:     webhook,
-    };
+  try {
 
     await addDoc(collection(db, COLLECTION), {
       ...record,
@@ -1148,9 +1127,9 @@ $("btn-submit").addEventListener("click", async () => {
     setView("history");
   } catch (err) {
     console.error(err);
-    let reason = err.message || "不明なエラー";
-    if (err.code === "permission-denied")        reason = "保存権限がありません（Firestore ルールを確認してください）";
-    if (String(err.code).startsWith("storage/")) reason = "写真を送信できませんでした（Storage ルールを確認してください）";
+    const reason = err.code === "permission-denied"
+      ? "保存権限がありません（Firestore ルールを確認してください）"
+      : (err.message || "不明なエラー");
     toast("送信できませんでした: " + reason, "err");
   } finally {
     submitting = false;
