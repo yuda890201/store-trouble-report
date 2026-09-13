@@ -109,6 +109,18 @@
         <div id="grid-target" class="grid grid-cols-1 gap-3"></div>
       </div>
 
+      <!-- STEP : 店舗設備の案内。設定で登録した文章と画像を出すだけの行き止まり -->
+      <div id="step-4" class="step is-hidden space-y-4">
+        <div>
+          <h2 class="text-base font-bold mb-1" data-i18n="q_guide">設備の問い合わせ</h2>
+          <p class="text-xs text-slate-400" data-i18n="q_guide_sub">下の案内にしたがって連絡してください</p>
+        </div>
+        <div id="guide-body" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3"></div>
+        <button type="button" id="btn-report-anyway"
+          class="w-full py-3 bg-slate-800 border border-slate-700 active:bg-slate-700 text-slate-200 font-bold rounded-xl text-sm"
+          data-i18n="report_anyway">それでも報告する</button>
+      </div>
+
       <!-- STEP 2 : カテゴリ（アプリのみ） -->
       <div id="step-1" class="step is-hidden">
         <h2 class="text-base font-bold mb-1" data-i18n="q_category">どの機能ですか？</h2>
@@ -264,6 +276,30 @@
     <input type="text" id="store_name" maxlength="40" autocomplete="off" data-i18n-ph="store_name_ph" placeholder="例: 〇〇店"
       class="mt-2 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-base placeholder:text-slate-600 focus:border-orange-500 focus:outline-none">
 
+    <p class="mt-5 text-xs font-bold text-slate-300" data-i18n="equip_mode">店舗設備を選んだとき</p>
+    <p class="text-[10px] text-slate-500 mt-1 leading-relaxed" data-i18n="guide_saved_here">この端末にだけ保存されます</p>
+    <div id="equip-mode-switch" class="mt-2 grid grid-cols-2 gap-2"></div>
+
+    <div id="guide-fields" class="is-hidden">
+      <label for="guide_text" class="mt-3 block text-[11px] font-bold text-slate-400" data-i18n="guide_text">案内のテキスト</label>
+      <textarea id="guide_text" rows="4" maxlength="600" data-i18n-ph="guide_text_ph"
+        placeholder="例: 設備の不具合は本部設備課（0120-000-000）へ直接ご連絡ください。"
+        class="mt-1 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-base leading-relaxed placeholder:text-slate-600 focus:border-orange-500 focus:outline-none"></textarea>
+
+      <p class="mt-3 text-[11px] font-bold text-slate-400" data-i18n="guide_image">案内の画像</p>
+      <div id="guide-image-preview" class="is-hidden mt-2 relative">
+        <img id="guide-image-img" alt="" class="w-full max-h-48 object-contain rounded-xl border border-slate-700 bg-black">
+        <button type="button" id="btn-guide-image-clear" class="absolute top-2 right-2 w-9 h-9 rounded-full bg-black/70 border border-slate-600 text-slate-200 flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i><span class="sr-only" data-i18n="guide_clear_image">画像を削除</span>
+        </button>
+      </div>
+      <button type="button" id="btn-guide-image"
+        class="mt-2 w-full py-3 bg-slate-800 border border-slate-700 active:bg-slate-700 text-slate-100 font-bold rounded-xl text-sm flex items-center justify-center gap-2">
+        <i class="fa-solid fa-image text-orange-400"></i><span data-i18n="guide_pick_image">画像を選ぶ</span>
+      </button>
+      <input type="file" id="file-guide-image" accept="image/*" class="hidden">
+    </div>
+
     <p class="mt-5 text-xs font-bold text-slate-300" data-i18n="notify">通知先</p>
     <p class="text-[10px] text-slate-500 mt-1 leading-relaxed" data-i18n="notify_hint">登録しておくと、送信後にワンタップでアプリを開けます。</p>
 
@@ -271,11 +307,6 @@
     <input type="email" id="notify_mail" inputmode="email" autocapitalize="none" spellcheck="false" autocomplete="off"
       data-i18n-ph="notify_mail_ph" placeholder="you@example.com"
       class="mt-1 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-base placeholder:text-slate-600 focus:border-orange-500 focus:outline-none">
-
-    <label class="mt-3 flex items-center gap-3 py-1 cursor-pointer">
-      <input type="checkbox" id="notify_line" class="w-5 h-5 accent-orange-500 rounded">
-      <span class="text-sm font-bold text-slate-200" data-i18n="notify_line">LINE で送る</span>
-    </label>
 
     <label for="webhook_endpoint" class="mt-4 block text-[11px] font-bold text-slate-400" data-i18n="webhook">Webhook URL</label>
     <p class="text-[10px] text-slate-500 mt-1 leading-relaxed" data-i18n="webhook_hint">Discord や GAS 向け。分からなければ空欄で構いません。</p>
@@ -306,14 +337,10 @@
     <div class="mt-4 space-y-2">
       <a id="btn-notify-mail" href="#" class="is-hidden w-full py-3.5 bg-slate-800 border border-slate-700 active:bg-slate-700 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2">
         <i class="fa-solid fa-paper-plane text-orange-400"></i><span data-i18n="notify_by_mail">メールで知らせる</span>
-      </a>
-      <a id="btn-notify-line" href="#" target="_blank" rel="noopener" class="is-hidden w-full py-3.5 bg-slate-800 border border-slate-700 active:bg-slate-700 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2">
-        <i class="fa-solid fa-tower-broadcast text-emerald-400"></i><span data-i18n="notify_by_line">LINE で送る</span>
-      </a>
-    </div>
+      </a>    </div>
 
     <p id="notify-note" class="mt-3 text-[10px] text-slate-500 leading-relaxed" data-i18n="notify_no_photo">
-      メールと LINE には写真は付きません。文章だけが入ります。
+      メールには写真は付きません。文章だけが入ります。
     </p>
     <button type="button" id="btn-notify-close" class="mt-4 w-full py-3 text-sm font-bold text-slate-400 active:text-slate-200"
       data-i18n="close">閉じる</button>
@@ -394,11 +421,13 @@ if (CONFIGURED && !SDK_ERROR) {
 const LS_LANG      = "str.lang";
 const LS_STORE     = "str.store_name";
 const LS_MAIL      = "str.notify_mail";
-const LS_LINE      = "str.notify_line";
 const LS_WEBHOOK   = "str.webhook_endpoint";
 const LS_PHRASES   = "str.saved_phrases";
 const LS_REPORTERS = "str.reporters";
 const LS_REPORTER  = "str.last_reporter";
+const LS_EQUIP_MODE  = "str.equip_mode";     // "guide" | "report"
+const LS_GUIDE_TEXT  = "str.guide_text";
+const LS_GUIDE_IMAGE = "str.guide_image";
 
 /* ====================== ユーティリティ ====================== */
 const $  = (id) => document.getElementById(id);
@@ -417,7 +446,8 @@ function lsGet(key, fallback) {
   } catch { return fallback; }
 }
 function lsSet(key, value) {
-  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* 容量超過などは黙って無視 */ }
+  // 保存できたかどうかを返す。画像のように容量超過があり得るものは呼び出し側で見る。
+  try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; }
 }
 
 function escapeHTML(s) {
@@ -569,7 +599,6 @@ const I18N = {
     store_name_ph: "例: 〇〇店",
     notify: "通知先", notify_hint: "登録しておくと、送信後にワンタップでアプリを開けます。",
     notify_mail: "メールアドレス", notify_mail_ph: "you@example.com",
-    notify_line: "LINE で送る",
     webhook: "Webhook URL", webhook_hint: "Discord や GAS 向け。分からなければ空欄で構いません。",
     save: "保存する", saved: "設定を保存しました",
     need_https: "https:// で始まるURLを入力してください",
@@ -578,9 +607,19 @@ const I18N = {
     logged_in: "ログイン中", logout: "ログアウト",
 
     notify_title: "報告を記録しました", notify_lead: "知らせますか？",
-    notify_by_mail: "メールで知らせる", notify_by_line: "LINE で送る", close: "閉じる",
-    notify_no_photo: "メールと LINE には写真は付きません。文章だけが入ります。",
+    notify_by_mail: "メールで知らせる", close: "閉じる",
+    notify_no_photo: "メールには写真は付きません。文章だけが入ります。",
 
+    step_guide: "案内",
+    q_guide: "設備の問い合わせ", q_guide_sub: "下の案内にしたがって連絡してください",
+    guide_clear_image: "画像を削除",
+    equip_mode: "店舗設備を選んだとき",
+    equip_guide: "案内を表示する", equip_report: "報告する（今までどおり）",
+    guide_text: "案内のテキスト", guide_text_ph: "例: 設備の不具合は本部設備課（0120-000-000）へ直接ご連絡ください。",
+    guide_image: "案内の画像", guide_pick_image: "画像を選ぶ",
+    guide_empty: "案内がまだ登録されていません。ヘッダーの歯車から登録してください。",
+    report_anyway: "それでも報告する",
+    guide_saved_here: "この端末にだけ保存されます",
     subject: "【トラブル報告】",
     l_store: "店舗", l_reporter: "報告者", l_target: "対象", l_category: "カテゴリ",
     l_symptom: "症状", l_when: "発生", l_status: "状態", l_photo: "写真",
@@ -653,7 +692,6 @@ const I18N = {
     store_name_ph: "e.g. Minato",
     notify: "Notify", notify_hint: "Save these and you can open the app in one tap after sending.",
     notify_mail: "Email address", notify_mail_ph: "you@example.com",
-    notify_line: "Send via LINE",
     webhook: "Webhook URL", webhook_hint: "For Discord or GAS. Leave it empty if unsure.",
     save: "Save", saved: "Settings saved",
     need_https: "The URL must start with https://",
@@ -662,9 +700,19 @@ const I18N = {
     logged_in: "Signed in", logout: "Log out",
 
     notify_title: "Report saved", notify_lead: "Let someone know?",
-    notify_by_mail: "Send email", notify_by_line: "Send on LINE", close: "Close",
-    notify_no_photo: "Email and LINE carry the text only, not the photo.",
+    notify_by_mail: "Send email", close: "Close",
+    notify_no_photo: "The email carries the text only, not the photo.",
 
+    step_guide: "Guide",
+    q_guide: "Equipment enquiries", q_guide_sub: "Please follow the guidance below",
+    guide_clear_image: "Remove image",
+    equip_mode: "When store equipment is chosen",
+    equip_guide: "Show the guide", equip_report: "File a report (as before)",
+    guide_text: "Guide text", guide_text_ph: "e.g. For equipment faults, call the facilities desk on 0120-000-000.",
+    guide_image: "Guide image", guide_pick_image: "Choose an image",
+    guide_empty: "No guide has been set yet. Add one from the gear icon in the header.",
+    report_anyway: "File a report anyway",
+    guide_saved_here: "Saved on this device only",
     subject: "[Trouble report] ",
     l_store: "Store", l_reporter: "Reported by", l_target: "Type", l_category: "Area",
     l_symptom: "Symptom", l_when: "When", l_status: "Status", l_photo: "Photo",
@@ -737,7 +785,6 @@ const I18N = {
     store_name_ph: "जस्तै: मिनातो",
     notify: "खबर पठाउने ठाउँ", notify_hint: "दर्ता गरे पठाएपछि एक ट्यापमा खोल्न सकिन्छ।",
     notify_mail: "इमेल ठेगाना", notify_mail_ph: "you@example.com",
-    notify_line: "LINE बाट पठाउने",
     webhook: "Webhook URL", webhook_hint: "Discord वा GAS का लागि। थाहा नभए खाली छोड्नुहोस्।",
     save: "सुरक्षित", saved: "सेटिङ सुरक्षित भयो",
     need_https: "URL https:// बाट सुरु हुनुपर्छ",
@@ -746,9 +793,19 @@ const I18N = {
     logged_in: "लग इन", logout: "लग आउट",
 
     notify_title: "रिपोर्ट सुरक्षित भयो", notify_lead: "कसैलाई खबर गर्ने?",
-    notify_by_mail: "इमेल पठाउने", notify_by_line: "LINE बाट पठाउने", close: "बन्द",
-    notify_no_photo: "इमेल र LINE मा पाठ मात्र जान्छ, फोटो जाँदैन।",
+    notify_by_mail: "इमेल पठाउने", close: "बन्द",
+    notify_no_photo: "इमेलमा पाठ मात्र जान्छ, फोटो जाँदैन।",
 
+    step_guide: "जानकारी",
+    q_guide: "सामानको बारेमा सोध्ने", q_guide_sub: "तलको जानकारी अनुसार सम्पर्क गर्नुहोस्",
+    guide_clear_image: "फोटो हटाउने",
+    equip_mode: "पसलका सामान छानेपछि",
+    equip_guide: "जानकारी देखाउने", equip_report: "रिपोर्ट गर्ने (पहिलेजस्तै)",
+    guide_text: "जानकारीको पाठ", guide_text_ph: "उदाहरण: सामानको समस्यामा 0120-000-000 मा फोन गर्नुहोस्।",
+    guide_image: "जानकारीको फोटो", guide_pick_image: "फोटो छान्ने",
+    guide_empty: "जानकारी अझै राखिएको छैन। माथिको गियरबाट राख्नुहोस्।",
+    report_anyway: "तैपनि रिपोर्ट गर्ने",
+    guide_saved_here: "यो यन्त्रमा मात्र सुरक्षित हुन्छ",
     subject: "[समस्या रिपोर्ट] ",
     l_store: "पसल", l_reporter: "रिपोर्ट गर्ने", l_target: "प्रकार", l_category: "भाग",
     l_symptom: "लक्षण", l_when: "कहिले", l_status: "अवस्था", l_photo: "फोटो",
@@ -942,8 +999,9 @@ $("login-form").addEventListener("submit", async (event) => {
 /* ====================== 報告フォームの状態 ======================
    店舗設備はカテゴリも症状も選ばせず、いきなり詳細に進む。
    専用の問い合わせ先が別にあるため、ここで分類させても使い道がない。 */
-const FLOW_EQUIPMENT = [0, 3];
-const FLOW_APP       = [0, 1, 2, 3];
+const FLOW_EQUIPMENT   = [0, 3];
+const FLOW_APP         = [0, 1, 2, 3];
+const FLOW_EQUIP_GUIDE = [0, 4];   // 案内を出して終わり（報告したい人は step 4 から抜けられる）
 
 const form = {
   target_type: "",
@@ -956,7 +1014,7 @@ const MAX_PHOTOS = 1;
 let flow = FLOW_APP;
 let pos  = 0;          // flow の何番目にいるか
 
-const STEP_KEYS = ["step_target", "step_category", "step_symptom", "step_detail"];
+const STEP_KEYS = ["step_target", "step_category", "step_symptom", "step_detail", "step_guide"];
 
 function tileHTML({ value, icon, name, desc, selected, wide }) {
   return `
@@ -1033,8 +1091,8 @@ $("grid-target").addEventListener("click", (e) => {
   if (!btn) return;
   form.target_type = btn.dataset.value;
   if (form.target_type === TARGET_EQUIPMENT) {
-    // 設備は分類させずに自由入力へ
-    flow = FLOW_EQUIPMENT;
+    // 設備は分類させずに自由入力へ。案内モードなら案内だけを出す。
+    flow = equipGuideActive() ? FLOW_EQUIP_GUIDE : FLOW_EQUIPMENT;
     form.category = "";
     form.symptom  = "";
   } else {
@@ -1062,6 +1120,40 @@ $("grid-symptom").addEventListener("click", (e) => {
   goPos(3);
 });
 
+/* ====================== 店舗設備の案内 ======================
+   設備には別の問い合わせ窓口があることが多い。設定で案内を登録してあれば、
+   分類も報告もさせずにその案内だけを出す。登録がなければ従来どおり報告に進む。 */
+const EQUIP_MODES = [
+  { value: "guide",  key: "equip_guide"  },
+  { value: "report", key: "equip_report" },
+];
+const equipMode  = () => (lsGet(LS_EQUIP_MODE, "guide") === "report" ? "report" : "guide");
+const guideText  = () => String(lsGet(LS_GUIDE_TEXT, "") || "");
+const guideImage = () => String(lsGet(LS_GUIDE_IMAGE, "") || "");
+// 案内が空のまま行き止まりに送らない。未登録の端末は今までどおり報告できる。
+const equipGuideActive = () => equipMode() === "guide" && Boolean(guideText() || guideImage());
+
+function renderGuide() {
+  const text = guideText(), image = guideImage();
+  const parts = [];
+  if (text) {
+    parts.push(`<p class="text-sm leading-relaxed whitespace-pre-wrap text-slate-100">${escapeHTML(text)}</p>`);
+  }
+  if (image) {
+    parts.push(`<img src="${escapeHTML(image)}" alt="${escapeHTML(t("guide_image"))}"
+      class="w-full max-h-[60vh] object-contain rounded-xl border border-slate-700 bg-black">`);
+  }
+  if (!parts.length) {
+    parts.push(`<p class="text-sm leading-relaxed text-slate-400">${escapeHTML(t("guide_empty"))}</p>`);
+  }
+  $("guide-body").innerHTML = parts.join("");
+}
+
+$("btn-report-anyway").addEventListener("click", () => {
+  flow = FLOW_EQUIPMENT;
+  goPos(1);
+});
+
 function goPos(next) {
   pos = Math.max(0, Math.min(next, flow.length - 1));
   STEP_KEYS.forEach((_, i) => $("step-" + i).classList.add("is-hidden"));
@@ -1074,6 +1166,7 @@ function goPos(next) {
   if (flow[pos] === 0) renderTargets();
   if (flow[pos] === 1) renderCategories();
   if (flow[pos] === 2) renderSymptoms();
+  if (flow[pos] === 4) renderGuide();
 
   renderStepBar();
   renderCrumbs();
@@ -1269,10 +1362,57 @@ $("btn-now").addEventListener("click", () => {
 });
 
 /* ====================== 設定 ====================== */
+function renderEquipModeSwitch() {
+  const current = $("equip-mode-switch").dataset.value || equipMode();
+  $("equip-mode-switch").dataset.value = current;
+  $("equip-mode-switch").innerHTML = EQUIP_MODES.map((m) => {
+    const on = m.value === current;
+    return `<button type="button" data-equip-mode="${m.value}"
+      class="text-xs font-bold px-3 py-2.5 rounded-lg border leading-snug ${on
+        ? "border-orange-500 bg-orange-500/20 text-orange-200"
+        : "border-slate-700 bg-slate-900 text-slate-400"}">${escapeHTML(t(m.key))}</button>`;
+  }).join("");
+  $("guide-fields").classList.toggle("is-hidden", current !== "guide");
+}
+
+function renderGuideImageField() {
+  const image = $("guide-image-preview").dataset.value || "";
+  $("guide-image-preview").classList.toggle("is-hidden", !image);
+  if (image) $("guide-image-img").src = image;
+}
+
+$("equip-mode-switch").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-equip-mode]");
+  if (!btn) return;
+  $("equip-mode-switch").dataset.value = btn.dataset.equipMode;
+  renderEquipModeSwitch();
+});
+
+$("btn-guide-image").addEventListener("click", () => $("file-guide-image").click());
+$("file-guide-image").addEventListener("change", async (e) => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+  try {
+    $("guide-image-preview").dataset.value = await compressPhoto(file);
+    renderGuideImageField();
+  } catch (err) {
+    toast(err.message || t("photo_read_fail"), "err");
+  }
+});
+$("btn-guide-image-clear").addEventListener("click", () => {
+  $("guide-image-preview").dataset.value = "";
+  renderGuideImageField();
+});
+
 $("btn-settings").addEventListener("click", () => {
   $("store_name").value       = lsGet(LS_STORE, "");
+  $("guide_text").value       = guideText();
+  $("equip-mode-switch").dataset.value    = equipMode();
+  $("guide-image-preview").dataset.value  = guideImage();
+  renderEquipModeSwitch();
+  renderGuideImageField();
   $("notify_mail").value      = lsGet(LS_MAIL, "");
-  $("notify_line").checked    = Boolean(lsGet(LS_LINE, false));
   $("webhook_endpoint").value = lsGet(LS_WEBHOOK, "");
   const email = (auth && auth.currentUser) ? auth.currentUser.email : "";
   $("who").textContent = email ? email.split("@")[0] : "-";
@@ -1288,12 +1428,16 @@ $("btn-settings-save").addEventListener("click", () => {
   const mail = $("notify_mail").value.trim();
   if (url && !/^https:\/\//i.test(url)) { toast(t("need_https"), "err"); return; }
   if (mail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)) { toast(t("bad_mail"), "err"); return; }
+  const image = $("guide-image-preview").dataset.value || "";
   lsSet(LS_STORE,   $("store_name").value.trim());
   lsSet(LS_MAIL,    mail);
-  lsSet(LS_LINE,    $("notify_line").checked);
   lsSet(LS_WEBHOOK, url);
+  lsSet(LS_EQUIP_MODE, $("equip-mode-switch").dataset.value || "guide");
+  lsSet(LS_GUIDE_TEXT, $("guide_text").value.trim());
+  const imageSaved = lsSet(LS_GUIDE_IMAGE, image);
   hide($("settings-modal"));
-  toast(t("saved"));
+  if (flow[pos] === 4) renderGuide();   // 案内を開いたまま編集した場合
+  toast(imageSaved ? t("saved") : t("photo_too_big"), imageSaved ? "ok" : "err");
 });
 
 $("btn-logout").addEventListener("click", async () => {
@@ -1503,7 +1647,7 @@ function stopHistory() {
 }
 
 /* ====================== 送信 ====================== */
-// 通知の本文。メール・LINE・Webhook で共通に使う。
+// 通知の本文。メールと Webhook で共通に使う。
 function notifyText(record) {
   const L = (k) => t(k);
   const rows = [
@@ -1543,23 +1687,14 @@ async function notifyWebhook(url, record) {
 // 宛先が登録してあれば「開くだけ」の導線を出す。
 function openNotifyModal(record) {
   const mail = lsGet(LS_MAIL, "");
-  const line = Boolean(lsGet(LS_LINE, false));
-  if (!mail && !line) return false;
+  if (!mail) return false;
 
   const body    = notifyText(record);
   const subject = t("subject") + (categoryName(record.category) || record.target_type);
 
   const mailBtn = $("btn-notify-mail");
-  if (mail) {
-    mailBtn.href = `mailto:${encodeURIComponent(mail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    show(mailBtn);
-  } else { hide(mailBtn); }
-
-  const lineBtn = $("btn-notify-line");
-  if (line) {
-    lineBtn.href = `https://line.me/R/msg/text/?${encodeURIComponent(subject + "\n" + body)}`;
-    show(lineBtn);
-  } else { hide(lineBtn); }
+  mailBtn.href = `mailto:${encodeURIComponent(mail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  show(mailBtn);
 
   show($("notify-modal"));
   return true;
@@ -1643,6 +1778,7 @@ function resetForm() {
 
 /* ====================== 言語を変えたときの描き直し ====================== */
 function redrawAll() {
+  if (!$("settings-modal").classList.contains("is-hidden")) renderEquipModeSwitch();
   renderFixedChips();
   renderSavedChips();
   renderReporterChips();
@@ -1653,6 +1789,7 @@ function redrawAll() {
   if (flow[pos] === 0) renderTargets();
   if (flow[pos] === 1) renderCategories();
   if (flow[pos] === 2) renderSymptoms();
+  if (flow[pos] === 4) renderGuide();
   renderHistory();
   $("submit-label").textContent = t("submit");
 }
