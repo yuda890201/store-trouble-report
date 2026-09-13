@@ -281,19 +281,34 @@ const COLLECTION      = "trouble_reports";
 const HISTORY_LIMIT   = 20;
 const PHOTO_MAX_CHARS = 700000;   // Firestore の 1 ドキュメント上限(1MiB)に対する安全圏
 
-/* ====================== Firebase SDK ====================== */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import {
-  getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
-  setPersistence, browserLocalPersistence
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {
-  getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+/* ====================== Firebase SDK ======================
+   静的 import だと SDK の取得に失敗した時点でモジュールごと止まり、
+   画面が無反応になる。現場は通信が不安定なので動的に読み、
+   失敗したらその旨を表示できるようにしている。                        */
+let SDK_ERROR = null;
+let initializeApp, getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
+    setPersistence, browserLocalPersistence,
+    getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp;
+
+try {
+  const [appModule, authModule, storeModule] = await Promise.all([
+    import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"),
+    import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"),
+    import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"),
+  ]);
+  ({ initializeApp } = appModule);
+  ({ getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
+     setPersistence, browserLocalPersistence } = authModule);
+  ({ getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot,
+     serverTimestamp } = storeModule);
+} catch (err) {
+  SDK_ERROR = err;
+  console.error("Firebase SDK を読み込めませんでした", err);
+}
 
 const CONFIGURED = Boolean(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId && STORE_ACCOUNT_EMAIL);
 let auth = null, db = null;
-if (CONFIGURED) {
+if (CONFIGURED && !SDK_ERROR) {
   const fb = initializeApp(FIREBASE_CONFIG);
   auth = getAuth(fb);
   db   = getFirestore(fb);
@@ -426,6 +441,7 @@ const AUTH_ERRORS = {
 };
 
 async function attemptLogin() {
+  if (SDK_ERROR)  { failAuth("通信に失敗しました。接続を確認してください"); return; }
   if (!CONFIGURED) { failAuth("Firebase が未設定です"); return; }
   authBusy = true;
   $("auth-msg").innerHTML = '<span class="text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-1"></i>確認中…</span>';
@@ -907,7 +923,12 @@ renderStepBar();
 $("report_time").value = nowLocalValue();
 setView("report");
 
-if (!CONFIGURED) {
+if (SDK_ERROR) {
+  $("auth-msg").innerHTML =
+    '通信に失敗しました。接続を確認してください' +
+    '<button type="button" id="btn-reload" class="block mx-auto mt-3 px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 font-bold">再読み込み</button>';
+  $("btn-reload").addEventListener("click", () => location.reload());
+} else if (!CONFIGURED) {
   show($("setup-warning"));
   $("auth-msg").textContent = "Firebase が未設定のため利用できません";
 } else {
