@@ -18,6 +18,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # 作業ブランチでもビルドだけは回して、生成スクリプトの壊れに気づけるようにする
   build:
     runs-on: ubuntu-latest
     steps:
@@ -36,8 +37,11 @@ jobs:
         with:
           path: _site
 
+  # github-pages 環境はデフォルトブランチからのデプロイしか許可していないため、
+  # 実際の公開は main に入ったときだけ行う。
   deploy:
     needs: build
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

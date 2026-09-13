@@ -120,6 +120,28 @@ service cloud.firestore {
 `webhook_endpoint` 宛に送るようにしてください。アプリ側の直接 POST は失敗しても
 報告の保存には影響しません。
 
+## デプロイ
+
+`main` に push すると GitHub Actions が GitHub Pages に公開します
+（`.github/workflows/pages.yml`）。公開されるのは次の2つです。
+
+| URL | 内容 |
+| --- | --- |
+| `index.html` | 本番版。Firebase の設定値が必要です |
+| `demo.html` | デモ版。保存先をブラウザ内のダミーに差し替えたもの |
+
+デモ版は `tools/build-demo.mjs` が `index.html` から生成します。UI を直すときは
+`index.html` だけを編集してください。デモ版はファイルとして持っていません。
+
+デモ版は任意の4桁の数字でログインでき、入力内容はブラウザを閉じると消えます。
+外部への通信は行いません。ホーム画面に追加されると本番版と紛らわしいため、
+マニフェストの link タグは生成時に外しています。
+
+`github-pages` 環境はデフォルトブランチからのデプロイのみを許可しているため、
+作業ブランチではビルドの検証だけを行い、公開は `main` に入ったときだけ実行します。
+作業ブランチの内容を先に公開したい場合は、リポジトリの Settings → Environments →
+`github-pages` で対象ブランチを追加してください。
+
 ## 動作環境
 
 iOS Safari / Android Chrome の最新版を想定しています。
