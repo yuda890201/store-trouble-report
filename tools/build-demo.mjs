@@ -28,7 +28,7 @@ function swap(from, to, label) {
 
 // 1) Firebase SDK をブラウザ内のダミーに差し替える
 swap(
-  /https:\/\/www\.gstatic\.com\/firebasejs\/[\d.]+\/firebase-(?:app|auth|firestore)\.js/g,
+  /https:\/\/www\.gstatic\.com\/firebasejs\/[\d.]+\/firebase-(?:app|auth|firestore|storage)\.js/g,
   "./demo-firebase.mjs",
   "firebase sdk",
 );

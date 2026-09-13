@@ -3,9 +3,11 @@
 店舗現場のトラブル・不具合を、スマートフォンの片手操作で手早く報告するための単一ページアプリです。
 
 - 起動時に店舗共通PINで認証（照合は Firebase Authentication のサーバー側）
-- 対象区分 → カテゴリ → 症状 → 詳細の4ステップ。症状を選ぶとコメントが自動で埋まるので、最短4タップで送信できます
-- 写真はカメラ起動またはアルバムから選び、ブラウザ側で圧縮してプレビュー
-- 送信内容は Firestore の `trouble_reports` コレクションに保存し、直近20件をリアルタイムで一覧表示
+- 対象区分 → カテゴリ → 症状 → 詳細の4ステップ。症状を選ぶとコメントが自動で埋まります
+- 緊急度（至急 / 要対応 / 通常）と報告者を記録。報告者名は端末に覚えて、次回からボタンで選べます
+- 写真はカメラ起動またはアルバムから最大4枚。ブラウザ側で圧縮して Cloud Storage に保存します
+- 送信内容は Firestore の `trouble_reports` コレクションに保存し、直近50件をリアルタイムで一覧表示
+- 履歴のステータスバッジをタップすると 未対応 → 対応中 → 完了 と進みます。ステータス・カテゴリ・緊急度で絞り込めます
 - ホーム画面に追加できる PWA（`manifest.json` / `icon-192.png` / `icon-512.png`）
 
 ## ファイル
@@ -25,6 +27,7 @@
 1. [Firebase コンソール](https://console.firebase.google.com/) でプロジェクトを作成します。
 2. **Authentication** を開き、ログイン方法で「メール / パスワード」を有効にします。
 3. **Firestore Database** を作成します（本番モードで構いません。ルールは後述）。
+4. **Storage** を作成します（写真の保存先。ルールは後述）。
 
 ### 2. 店舗共通アカウントを作る
 
@@ -66,8 +69,10 @@ const STORE_ACCOUNT_EMAIL = "store@example.com";
 | --- | --- | --- |
 | `PIN_PREFIX` | `store-pin-` | PIN に前置してパスワードにする文字列 |
 | `PIN_LENGTH` | `4` | PIN の桁数。この桁数に達すると自動で認証します |
-| `HISTORY_LIMIT` | `20` | 履歴に表示する件数 |
-| `PHOTO_MAX_CHARS` | `700000` | 写真データの上限。Firestore の1ドキュメント上限に対する安全圏 |
+| `HISTORY_LIMIT` | `50` | 履歴に読み込む件数。絞り込みはこの範囲に対して行われます |
+| `MAX_PHOTOS` | `4` | 1件の報告に添付できる写真の枚数 |
+| `PHOTO_MAX_BYTES` | `1200000` | 圧縮後の1枚あたりの上限 |
+| `STORAGE_PREFIX` | `trouble_reports` | Cloud Storage 上の保存先フォルダ |
 
 ### 4. Firestore セキュリティルール
 
@@ -82,7 +87,36 @@ service cloud.firestore {
       allow create: if request.auth != null
                     && request.resource.data.comment is string
                     && request.resource.data.comment.size() > 0
-                    && request.resource.data.comment.size() < 2000;
+                    && request.resource.data.comment.size() < 2000
+                    && request.resource.data.reporter is string
+                    && request.resource.data.reporter.size() > 0
+                    && request.resource.data.urgency in ['至急', '要対応', '通常'];
+
+      // 履歴からのステータス変更だけを許可する。本文は書き換えさせない。
+      allow update: if request.auth != null
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['status', 'status_updated_at', 'status_updated_by'])
+                    && request.resource.data.status in ['未対応', '対応中', '完了'];
+
+      allow delete: if false;
+    }
+  }
+}
+```
+
+### 5. Storage セキュリティルール
+
+写真の保存先です。Firebase コンソールの Storage → Rules に設定します。
+
+```
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /trouble_reports/{fileName} {
+      allow read:   if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.size < 2 * 1024 * 1024
+                    && request.resource.contentType.matches('image/.*');
       allow update, delete: if false;
     }
   }
@@ -98,16 +132,27 @@ service cloud.firestore {
 | `target_type` | string | 対象区分（必須） |
 | `category` | string | カテゴリ（必須） |
 | `quick_trouble_preset` | string | 選んだ症状。未選択なら `直接入力` |
-| `photo_data` | string | 圧縮済み写真の Base64 データURL。未添付なら空文字 |
+| `urgency` | string | 緊急度（必須）。`至急` / `要対応` / `通常` |
+| `reporter` | string | 報告者名（必須） |
+| `store_name` | string | 設定画面で登録した店舗名 |
+| `photos` | array | 添付写真。`{ url, path }` の配列。未添付なら空配列 |
 | `comment` | string | トラブル詳細（必須） |
 | `report_time` | string | 発生・報告日時（必須、`datetime-local` の値） |
 | `webhook_endpoint` | string | 設定画面で登録した通知先URL |
 | `status` | string | 対応状況。作成時は `未対応` |
+| `status_updated_at` | timestamp | ステータスを最後に変更した時刻 |
+| `status_updated_by` | string | ステータスを変更した端末の Firebase Auth UID |
 | `reporter_uid` | string | 送信した端末の Firebase Auth UID |
 | `created_at` | timestamp | サーバー時刻 |
 
-履歴カードのステータスバッジは `status` を表示します。`未対応` / `対応中` / `完了` に色が付きます。
-値の変更はアプリからは行わないので、Firebase コンソールか別の管理画面から更新してください。
+`reporter_uid` は店舗共通アカウントの UID なので、全員が同じ値になります。
+誰が報告したかは `reporter` で判断してください。
+
+履歴カードのステータスバッジをタップすると `未対応` → `対応中` → `完了` の順に変わります。
+変更できるのは `status` と付随する2フィールドだけで、報告の本文は書き換えられません（上記ルールで制限しています）。
+
+以前のバージョンは写真を `photo_data` に Base64 で直接持っていました。
+その形式の報告も履歴にそのまま表示されます。
 
 ## 通知先 Webhook について
 

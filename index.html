@@ -118,12 +118,22 @@
           <p class="text-xs text-slate-400">写真があると復旧が早くなります</p>
         </div>
 
+        <!-- 緊急度 -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5">
+          <label class="text-xs font-bold text-slate-300 flex items-center gap-2">
+            <i class="fa-solid fa-gauge-high text-orange-400"></i>緊急度<span class="text-[10px] font-bold text-orange-400">必須</span>
+          </label>
+          <div id="urgency-group" class="mt-2.5 grid grid-cols-3 gap-2"></div>
+        </div>
+
         <!-- 写真 -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5">
           <label class="text-xs font-bold text-slate-300 flex items-center gap-2">
-            <i class="fa-solid fa-camera text-orange-400"></i>写真<span class="text-[10px] font-medium text-slate-500">任意</span>
+            <i class="fa-solid fa-camera text-orange-400"></i>写真
+            <span id="photo-count" class="text-[10px] font-medium text-slate-500">任意</span>
           </label>
-          <div id="photo-empty" class="mt-3 grid grid-cols-2 gap-3">
+          <div id="photo-grid" class="is-hidden mt-3 grid grid-cols-2 gap-2.5"></div>
+          <div id="photo-actions" class="mt-3 grid grid-cols-2 gap-3">
             <button type="button" id="btn-camera" class="tile flex flex-col items-center justify-center gap-2 bg-slate-800/70 border-2 border-slate-700 rounded-xl py-4 active:bg-slate-800">
               <i class="fa-solid fa-camera text-2xl text-orange-400"></i>
               <span class="text-xs font-bold">撮影する</span>
@@ -133,16 +143,9 @@
               <span class="text-xs font-bold">アルバム</span>
             </button>
           </div>
-          <div id="photo-preview" class="is-hidden mt-3 relative">
-            <img id="photo-img" alt="添付写真のプレビュー" class="w-full rounded-xl border border-slate-700 max-h-64 object-contain bg-black">
-            <button type="button" id="btn-photo-remove" aria-label="写真を削除" class="absolute top-2 right-2 w-9 h-9 rounded-full bg-black/70 backdrop-blur flex items-center justify-center text-white active:bg-black">
-              <i class="fa-solid fa-xmark"></i>
-            </button>
-            <p id="photo-size" class="mt-1.5 text-[10px] text-slate-500 text-right"></p>
-          </div>
           <p id="photo-busy" class="is-hidden mt-3 text-xs text-orange-300"><i class="fa-solid fa-spinner fa-spin mr-1"></i>圧縮しています…</p>
           <input type="file" id="file-camera" accept="image/*" capture="environment" class="hidden">
-          <input type="file" id="file-album" accept="image/*" class="hidden">
+          <input type="file" id="file-album" accept="image/*" multiple class="hidden">
         </div>
 
         <!-- コメント -->
@@ -163,6 +166,17 @@
             </button>
           </div>
           <div id="chips-saved" class="mt-1.5 flex flex-wrap gap-1.5"></div>
+        </div>
+
+        <!-- 報告者 -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5">
+          <label for="reporter" class="text-xs font-bold text-slate-300 flex items-center gap-2">
+            <i class="fa-solid fa-user text-orange-400"></i>報告者<span class="text-[10px] font-bold text-orange-400">必須</span>
+          </label>
+          <div id="chips-reporter" class="mt-2.5 flex flex-wrap gap-1.5"></div>
+          <input type="text" id="reporter" name="reporter" maxlength="24" autocomplete="off"
+            placeholder="名前を入力（次回からボタンで選べます）"
+            class="mt-2 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm placeholder:text-slate-600 focus:border-orange-500 focus:outline-none">
         </div>
 
         <!-- 発生日時 -->
@@ -200,9 +214,18 @@
           <i class="fa-solid fa-circle text-[6px] align-middle mr-1"></i>リアルタイム
         </span>
       </div>
+      <div class="mb-3 space-y-2">
+        <div id="filter-status" class="flex gap-1.5"></div>
+        <div class="grid grid-cols-2 gap-2">
+          <select id="filter-category" aria-label="カテゴリで絞り込む"
+            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-xs focus:border-orange-500 focus:outline-none"></select>
+          <select id="filter-urgency" aria-label="緊急度で絞り込む"
+            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-xs focus:border-orange-500 focus:outline-none"></select>
+        </div>
+      </div>
       <div id="history-list" class="space-y-3"></div>
       <p id="history-empty" class="is-hidden text-center text-xs text-slate-500 py-16">
-        <i class="fa-regular fa-folder-open text-3xl block mb-3 text-slate-700"></i>まだ報告はありません
+        <i class="fa-regular fa-folder-open text-3xl block mb-3 text-slate-700"></i><span id="history-empty-text">まだ報告はありません</span>
       </p>
     </section>
   </main>
@@ -230,7 +253,12 @@
       </button>
     </div>
 
-    <label for="webhook_endpoint" class="text-xs font-bold text-slate-300">通知先 Webhook URL</label>
+    <label for="store_name" class="text-xs font-bold text-slate-300">店舗名</label>
+    <p class="text-[10px] text-slate-500 mt-1 leading-relaxed">報告と一緒に記録されます。複数店舗で使うときに、どの店からの報告か分かるようになります。</p>
+    <input type="text" id="store_name" maxlength="40" autocomplete="off" placeholder="例: 〇〇店"
+      class="mt-2 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm placeholder:text-slate-600 focus:border-orange-500 focus:outline-none">
+
+    <label for="webhook_endpoint" class="mt-5 block text-xs font-bold text-slate-300">通知先 Webhook URL</label>
     <p class="text-[10px] text-slate-500 mt-1 leading-relaxed">Discord / Slack / GAS などの通知先。この端末に保存され、報告と一緒に送信されます。</p>
     <input type="url" id="webhook_endpoint" name="webhook_endpoint" inputmode="url" placeholder="https://..."
       class="mt-2 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm placeholder:text-slate-600 focus:border-orange-500 focus:outline-none">
@@ -278,8 +306,10 @@ const PIN_PREFIX = "store-pin-";
 const PIN_LENGTH = 4;
 
 const COLLECTION      = "trouble_reports";
-const HISTORY_LIMIT   = 20;
-const PHOTO_MAX_CHARS = 700000;   // Firestore の 1 ドキュメント上限(1MiB)に対する安全圏
+const HISTORY_LIMIT   = 50;
+const MAX_PHOTOS      = 4;
+const PHOTO_MAX_BYTES = 1200000;  // 1枚あたりの上限。Cloud Storage 側に文字数制限はない
+const STORAGE_PREFIX  = "trouble_reports";
 
 /* ====================== Firebase SDK ======================
    静的 import だと SDK の取得に失敗した時点でモジュールごと止まり、
@@ -288,30 +318,36 @@ const PHOTO_MAX_CHARS = 700000;   // Firestore の 1 ドキュメント上限(1M
 let SDK_ERROR = null;
 let initializeApp, getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
     setPersistence, browserLocalPersistence,
-    getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp;
+    getFirestore, collection, doc, addDoc, updateDoc, query, orderBy, limit,
+    onSnapshot, serverTimestamp,
+    getStorage, storageRef, uploadBytes, getDownloadURL;
 
 try {
-  const [appModule, authModule, storeModule] = await Promise.all([
+  const [appModule, authModule, storeModule, filesModule] = await Promise.all([
     import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"),
     import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"),
     import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"),
+    import("https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js"),
   ]);
   ({ initializeApp } = appModule);
   ({ getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
      setPersistence, browserLocalPersistence } = authModule);
-  ({ getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot,
-     serverTimestamp } = storeModule);
+  ({ getFirestore, collection, doc, addDoc, updateDoc, query, orderBy, limit,
+     onSnapshot, serverTimestamp } = storeModule);
+  ({ getStorage, uploadBytes, getDownloadURL } = filesModule);
+  storageRef = filesModule.ref;
 } catch (err) {
   SDK_ERROR = err;
   console.error("Firebase SDK を読み込めませんでした", err);
 }
 
 const CONFIGURED = Boolean(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId && STORE_ACCOUNT_EMAIL);
-let auth = null, db = null;
+let auth = null, db = null, storage = null;
 if (CONFIGURED && !SDK_ERROR) {
   const fb = initializeApp(FIREBASE_CONFIG);
-  auth = getAuth(fb);
-  db   = getFirestore(fb);
+  auth    = getAuth(fb);
+  db      = getFirestore(fb);
+  storage = getStorage(fb);
 }
 
 /* ====================== マスタデータ ====================== */
@@ -359,10 +395,22 @@ const COMMENT_CHIPS = [
   "再現性あり", "断続的に発生", "電源再投入済み", "業者へ連絡済み",
 ];
 
+const URGENCY_LEVELS = [
+  { value: "至急",   hint: "営業が止まる",   on: "border-rose-500 bg-rose-500/20 text-rose-200" },
+  { value: "要対応", hint: "支障が出ている", on: "border-amber-500 bg-amber-500/20 text-amber-200" },
+  { value: "通常",   hint: "急ぎではない",   on: "border-slate-500 bg-slate-500/20 text-slate-200" },
+];
+const DEFAULT_URGENCY = "要対応";
+
+const STATUS_CYCLE = ["未対応", "対応中", "完了"];
+
 const STEP_LABELS = ["対象区分", "カテゴリ", "症状", "詳細"];
 
-const LS_WEBHOOK = "str.webhook_endpoint";
-const LS_PHRASES = "str.saved_phrases";
+const LS_WEBHOOK   = "str.webhook_endpoint";
+const LS_PHRASES   = "str.saved_phrases";
+const LS_STORE     = "str.store_name";
+const LS_REPORTERS = "str.reporters";
+const LS_REPORTER  = "str.last_reporter";
 
 /* ====================== ユーティリティ ====================== */
 const $  = (id) => document.getElementById(id);
@@ -471,7 +519,8 @@ const form = {
   target_type: "",
   category: "",
   quick_trouble_preset: "",
-  photo_data: "",
+  urgency: DEFAULT_URGENCY,
+  photos: [],          // { blob, previewUrl, size }
 };
 let step = 0;
 
@@ -649,8 +698,63 @@ $("btn-save-phrase").addEventListener("click", () => {
   toast("よく使う文言に登録しました");
 });
 
+/* ====================== 緊急度 ====================== */
+function renderUrgency() {
+  $("urgency-group").innerHTML = URGENCY_LEVELS.map((u) => {
+    const on = form.urgency === u.value;
+    return `<button type="button" data-urgency="${u.value}"
+      class="border-2 rounded-xl py-2.5 px-1 leading-tight ${on ? u.on : "border-slate-700 bg-slate-900 text-slate-400"}">
+      <span class="block text-sm font-bold">${u.value}</span>
+      <span class="block text-[10px] mt-0.5 opacity-80">${u.hint}</span>
+    </button>`;
+  }).join("");
+}
+
+$("urgency-group").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-urgency]");
+  if (!btn) return;
+  form.urgency = btn.dataset.urgency;
+  renderUrgency();
+});
+
+/* ====================== 報告者 ====================== */
+// 名前は入力された順に端末へ覚えていく。次回からはボタンで選べる。
+function renderReporterChips() {
+  const names = lsGet(LS_REPORTERS, []);
+  const current = $("reporter").value.trim();
+  if (!names.length) {
+    $("chips-reporter").innerHTML =
+      `<p class="text-[11px] text-slate-600">入力した名前は次回から候補に出ます</p>`;
+    return;
+  }
+  $("chips-reporter").innerHTML = names.map((n) => {
+    const on = n === current;
+    return `<button type="button" data-reporter="${escapeHTML(n)}"
+      class="text-xs font-bold px-3 py-2 rounded-full border ${on
+        ? "border-orange-500 bg-orange-500/20 text-orange-200"
+        : "border-slate-700 bg-slate-800 text-slate-300"}">${escapeHTML(n)}</button>`;
+  }).join("");
+}
+
+$("chips-reporter").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-reporter]");
+  if (!btn) return;
+  $("reporter").value = btn.dataset.reporter;
+  renderReporterChips();
+});
+
+$("reporter").addEventListener("input", renderReporterChips);
+
+function rememberReporter(name) {
+  const names = lsGet(LS_REPORTERS, []).filter((n) => n !== name);
+  names.unshift(name);
+  lsSet(LS_REPORTERS, names.slice(0, 8));
+  lsSet(LS_REPORTER, name);
+}
+
 /* ====================== 写真 ====================== */
-async function compressImage(file) {
+// Cloud Storage に上げるので Base64 にはせず Blob のまま扱う。
+async function compressPhoto(file) {
   const dataUrl = await new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload  = () => resolve(reader.result);
@@ -665,7 +769,7 @@ async function compressImage(file) {
     image.src = dataUrl;
   });
 
-  for (const maxDim of [1280, 1024, 800, 640]) {
+  for (const maxDim of [1600, 1280, 1024, 800]) {
     const scale  = Math.min(1, maxDim / Math.max(img.width, img.height));
     const canvas = document.createElement("canvas");
     canvas.width  = Math.max(1, Math.round(img.width  * scale));
@@ -674,45 +778,78 @@ async function compressImage(file) {
     ctx.fillStyle = "#ffffff";                      // 透過PNG対策
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    for (const quality of [0.72, 0.6, 0.48, 0.38]) {
-      const out = canvas.toDataURL("image/jpeg", quality);
-      if (out.length <= PHOTO_MAX_CHARS) return out;
+    for (const quality of [0.82, 0.72, 0.6, 0.48]) {
+      const blob = await new Promise((r) => canvas.toBlob(r, "image/jpeg", quality));
+      if (blob && blob.size <= PHOTO_MAX_BYTES) return blob;
     }
   }
   throw new Error("画像が大きすぎます。別の写真でお試しください");
 }
 
-async function handleFile(input) {
-  const file = input.files && input.files[0];
+function renderPhotos() {
+  const grid = $("photo-grid");
+  grid.classList.toggle("is-hidden", form.photos.length === 0);
+  grid.innerHTML = form.photos.map((p, i) => `
+    <div class="relative">
+      <img src="${p.previewUrl}" alt="添付写真 ${i + 1}"
+        class="w-full aspect-square object-cover rounded-xl border border-slate-700 bg-black">
+      <button type="button" data-remove-photo="${i}" aria-label="${i + 1}枚目の写真を削除"
+        class="absolute top-1.5 right-1.5 w-8 h-8 rounded-full bg-black/70 backdrop-blur flex items-center justify-center text-white active:bg-black">
+        <i class="fa-solid fa-xmark text-xs"></i>
+      </button>
+      <span class="absolute bottom-1.5 left-1.5 text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/70 text-slate-300">
+        ${Math.round(p.size / 1024)} KB
+      </span>
+    </div>`).join("");
+
+  const full = form.photos.length >= MAX_PHOTOS;
+  $("photo-actions").classList.toggle("is-hidden", full);
+  $("photo-count").textContent = form.photos.length
+    ? `${form.photos.length} / ${MAX_PHOTOS} 枚`
+    : `任意・最大${MAX_PHOTOS}枚`;
+}
+
+$("photo-grid").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-remove-photo]");
+  if (!btn) return;
+  const [removed] = form.photos.splice(Number(btn.dataset.removePhoto), 1);
+  if (removed) URL.revokeObjectURL(removed.previewUrl);
+  renderPhotos();
+});
+
+async function handleFiles(input) {
+  const files = [...(input.files || [])];
   input.value = "";                                 // 同じ写真を選び直せるように
-  if (!file) return;
-  hide($("photo-empty"));
-  hide($("photo-preview"));
+  if (!files.length) return;
+
+  const room = MAX_PHOTOS - form.photos.length;
+  if (room <= 0) { toast(`写真は${MAX_PHOTOS}枚までです`, "info"); return; }
+  const accepted = files.slice(0, room);
+  if (files.length > room) toast(`${MAX_PHOTOS}枚まで。${room}枚だけ取り込みました`, "info");
+
   show($("photo-busy"));
-  try {
-    form.photo_data = await compressImage(file);
-    $("photo-img").src = form.photo_data;
-    $("photo-size").textContent = `約 ${Math.round(form.photo_data.length / 1024)} KB`;
-    hide($("photo-busy"));
-    show($("photo-preview"));
-  } catch (err) {
-    form.photo_data = "";
-    hide($("photo-busy"));
-    show($("photo-empty"));
-    toast(err.message, "err");
+  for (const file of accepted) {
+    try {
+      const blob = await compressPhoto(file);
+      form.photos.push({ blob, previewUrl: URL.createObjectURL(blob), size: blob.size });
+      renderPhotos();
+    } catch (err) {
+      toast(err.message, "err");
+    }
   }
+  hide($("photo-busy"));
 }
 
 $("btn-camera").addEventListener("click", () => $("file-camera").click());
 $("btn-album").addEventListener("click",  () => $("file-album").click());
-$("file-camera").addEventListener("change", (e) => handleFile(e.target));
-$("file-album").addEventListener("change",  (e) => handleFile(e.target));
-$("btn-photo-remove").addEventListener("click", () => {
-  form.photo_data = "";
-  $("photo-img").removeAttribute("src");
-  hide($("photo-preview"));
-  show($("photo-empty"));
-});
+$("file-camera").addEventListener("change", (e) => handleFiles(e.target));
+$("file-album").addEventListener("change",  (e) => handleFiles(e.target));
+
+function clearPhotos() {
+  form.photos.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+  form.photos = [];
+  renderPhotos();
+}
 
 /* ====================== 日時 ====================== */
 $("btn-now").addEventListener("click", () => {
@@ -722,6 +859,7 @@ $("btn-now").addEventListener("click", () => {
 
 /* ====================== 設定 ====================== */
 $("btn-settings").addEventListener("click", () => {
+  $("store_name").value       = lsGet(LS_STORE, "");
   $("webhook_endpoint").value = lsGet(LS_WEBHOOK, "");
   $("who").textContent = (auth && auth.currentUser) ? auth.currentUser.email : "-";
   show($("settings-modal"));
@@ -733,6 +871,7 @@ $("settings-modal").addEventListener("click", (e) => {
 $("btn-settings-save").addEventListener("click", () => {
   const url = $("webhook_endpoint").value.trim();
   if (url && !/^https:\/\//i.test(url)) { toast("https:// で始まるURLを入力してください", "err"); return; }
+  lsSet(LS_STORE, $("store_name").value.trim());
   lsSet(LS_WEBHOOK, url);
   hide($("settings-modal"));
   toast("設定を保存しました");
@@ -763,6 +902,14 @@ const STATUS_STYLE = {
   "対応中": "bg-amber-500/15 text-amber-300 border-amber-500/40",
   "完了":   "bg-emerald-500/15 text-emerald-300 border-emerald-500/40",
 };
+const URGENCY_STYLE = {
+  "至急":   "bg-rose-600/25 text-rose-200 border-rose-500/50",
+  "要対応": "bg-amber-500/15 text-amber-300 border-amber-500/40",
+  "通常":   "bg-slate-700/40 text-slate-300 border-slate-600",
+};
+
+let historyDocs = [];
+const filters = { status: "すべて", category: "", urgency: "" };
 
 function relativeTime(date) {
   if (!date) return "送信中…";
@@ -778,25 +925,82 @@ function escapeHTML(s) {
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
-function renderHistory(docs) {
-  $("history-empty").classList.toggle("is-hidden", docs.length > 0);
-  $("history-list").innerHTML = docs.map((d) => {
-    const status = d.status || "未対応";
-    const badge  = STATUS_STYLE[status] || STATUS_STYLE["未対応"];
-    const icon   = (CATEGORIES.find((c) => c.value === d.category) || {}).icon || "fa-ellipsis";
-    const when   = d.created_at && d.created_at.toDate ? d.created_at.toDate() : null;
+function renderStatusChips() {
+  $("filter-status").innerHTML = ["すべて", ...STATUS_CYCLE].map((v) => {
+    const on = filters.status === v;
+    return `<button type="button" data-filter-status="${v}"
+      class="flex-1 text-[11px] font-bold py-2 rounded-lg border ${on
+        ? "border-orange-500 bg-orange-500/20 text-orange-200"
+        : "border-slate-700 bg-slate-900 text-slate-400"}">${v}</button>`;
+  }).join("");
+}
+
+function buildFilters() {
+  renderStatusChips();
+  $("filter-category").innerHTML =
+    `<option value="">すべてのカテゴリ</option>` +
+    CATEGORIES.map((c) => `<option value="${c.value}">${c.value}</option>`).join("");
+  $("filter-urgency").innerHTML =
+    `<option value="">すべての緊急度</option>` +
+    URGENCY_LEVELS.map((u) => `<option value="${u.value}">${u.value}</option>`).join("");
+}
+
+$("filter-status").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-filter-status]");
+  if (!btn) return;
+  filters.status = btn.dataset.filterStatus;
+  renderStatusChips();
+  renderHistory();
+});
+$("filter-category").addEventListener("change", (e) => { filters.category = e.target.value; renderHistory(); });
+$("filter-urgency").addEventListener("change",  (e) => { filters.urgency  = e.target.value; renderHistory(); });
+
+function photoUrls(d) {
+  // 旧形式(photo_data に Base64 を直接持つ報告)も表示できるようにする
+  if (Array.isArray(d.photos) && d.photos.length) return d.photos.map((p) => p.url).filter(Boolean);
+  return d.photo_data ? [d.photo_data] : [];
+}
+
+function renderHistory() {
+  const list = historyDocs.filter((d) =>
+    (filters.status === "すべて" || (d.status || "未対応") === filters.status) &&
+    (!filters.category || d.category === filters.category) &&
+    (!filters.urgency  || d.urgency  === filters.urgency));
+
+  $("history-empty").classList.toggle("is-hidden", list.length > 0);
+  $("history-empty-text").textContent = historyDocs.length
+    ? "条件に合う報告はありません"
+    : "まだ報告はありません";
+
+  $("history-list").innerHTML = list.map((d) => {
+    const status  = d.status || "未対応";
+    const badge   = STATUS_STYLE[status] || STATUS_STYLE["未対応"];
+    const urgency = d.urgency || "";
+    const icon    = (CATEGORIES.find((c) => c.value === d.category) || {}).icon || "fa-ellipsis";
+    const when    = d.created_at && d.created_at.toDate ? d.created_at.toDate() : null;
+    const photos  = photoUrls(d);
+    const who     = [d.store_name, d.reporter].filter(Boolean).map(escapeHTML).join(" ・ ");
+
     return `
       <article class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 fade-in">
-        <div class="flex items-center gap-2 mb-2">
-          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${badge}">${escapeHTML(status)}</span>
+        <div class="flex items-center gap-1.5 mb-2 flex-wrap">
+          <button type="button" data-status-id="${escapeHTML(d.id)}" data-status="${escapeHTML(status)}"
+            class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${badge} active:opacity-70">
+            ${escapeHTML(status)}<i class="fa-solid fa-rotate-right text-[9px] ml-1 opacity-60"></i>
+          </button>
+          ${urgency ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${URGENCY_STYLE[urgency] || URGENCY_STYLE["通常"]}">${escapeHTML(urgency)}</span>` : ""}
           <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300">
             <i class="fa-solid ${icon} mr-1"></i>${escapeHTML(d.category || "-")}
           </span>
           <span class="ml-auto text-[10px] text-slate-500">${relativeTime(when)}</span>
         </div>
-        ${d.photo_data ? `<img src="${escapeHTML(d.photo_data)}" alt="添付写真" class="w-full max-h-40 object-cover rounded-xl mb-2 border border-slate-800">` : ""}
+        ${photos.length ? `<div class="grid ${photos.length > 1 ? "grid-cols-2" : "grid-cols-1"} gap-1.5 mb-2">
+          ${photos.map((u, i) => `<img src="${escapeHTML(u)}" alt="添付写真 ${i + 1}" loading="lazy"
+            class="w-full ${photos.length > 1 ? "aspect-square" : "max-h-48"} object-cover rounded-xl border border-slate-800 bg-black">`).join("")}
+        </div>` : ""}
         <p class="text-sm leading-relaxed whitespace-pre-wrap break-words">${escapeHTML(d.comment || "")}</p>
-        <p class="mt-2 text-[10px] text-slate-500">
+        <p class="mt-2 text-[10px] text-slate-500 leading-relaxed">
+          ${who ? escapeHTML(who) + "<br>" : ""}
           ${escapeHTML(d.target_type || "-")}
           ${d.quick_trouble_preset && d.quick_trouble_preset !== "直接入力" ? " ・ " + escapeHTML(d.quick_trouble_preset) : ""}
           ${d.report_time ? " ・ 発生 " + escapeHTML(d.report_time.replace("T", " ")) : ""}
@@ -805,12 +1009,38 @@ function renderHistory(docs) {
   }).join("");
 }
 
+// 履歴カードのバッジをタップして 未対応 → 対応中 → 完了 と進める
+$("history-list").addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-status-id]");
+  if (!btn || btn.disabled || !db) return;
+  const current = btn.dataset.status;
+  const next = STATUS_CYCLE[(STATUS_CYCLE.indexOf(current) + 1) % STATUS_CYCLE.length];
+  btn.disabled = true;
+  try {
+    await updateDoc(doc(db, COLLECTION, btn.dataset.statusId), {
+      status: next,
+      status_updated_at: serverTimestamp(),
+      status_updated_by: auth.currentUser ? auth.currentUser.uid : "",
+    });
+    toast(`「${next}」にしました`);
+  } catch (err) {
+    btn.disabled = false;
+    const reason = err.code === "permission-denied"
+      ? "権限がありません（Firestore ルールを確認してください）"
+      : (err.message || "不明なエラー");
+    toast("状態を変更できませんでした: " + reason, "err");
+  }
+});
+
 let unsubscribeHistory = null;
 function startHistory() {
   if (!db || unsubscribeHistory) return;
   const q = query(collection(db, COLLECTION), orderBy("created_at", "desc"), limit(HISTORY_LIMIT));
   unsubscribeHistory = onSnapshot(q,
-    (snap) => renderHistory(snap.docs.map((d) => d.data())),
+    (snap) => {
+      historyDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      renderHistory();
+    },
     (err)  => {
       console.error(err);
       $("history-list").innerHTML =
@@ -820,24 +1050,26 @@ function startHistory() {
 }
 function stopHistory() {
   if (unsubscribeHistory) { unsubscribeHistory(); unsubscribeHistory = null; }
+  historyDocs = [];
 }
 
 /* ====================== 送信 ====================== */
 async function notifyWebhook(url, record) {
   if (!url) return;
   const text =
-    `【現場トラブル報告】${record.category}\n` +
+    `【${record.urgency}】${record.category}` +
+    (record.store_name ? `（${record.store_name}）` : "") + "\n" +
     `対象: ${record.target_type}\n` +
     `症状: ${record.quick_trouble_preset}\n` +
+    `報告者: ${record.reporter}\n` +
     `発生: ${record.report_time.replace("T", " ")}\n` +
     `内容: ${record.comment}` +
-    (record.photo_data ? "\n（写真あり）" : "");
-  const { photo_data, ...withoutPhoto } = record;   // 画像本体は通知に載せない
+    (record.photos.length ? `\n写真 ${record.photos.length} 枚` : "");
   try {
     await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: text, text, report: { ...withoutPhoto, has_photo: Boolean(photo_data) } }),
+      body: JSON.stringify({ content: text, text, report: record }),
     });
   } catch (err) {
     // 通知先の CORS 設定次第で失敗する。報告そのものは保存済みなので握りつぶす。
@@ -845,17 +1077,33 @@ async function notifyWebhook(url, record) {
   }
 }
 
+async function uploadPhotos(photos) {
+  const stamp = Date.now();
+  const out = [];
+  for (let i = 0; i < photos.length; i++) {
+    $("submit-label").textContent = `写真を送信中 ${i + 1}/${photos.length}`;
+    const path = `${STORAGE_PREFIX}/${stamp}-${i}.jpg`;
+    const fileRef = storageRef(storage, path);
+    await uploadBytes(fileRef, photos[i].blob, { contentType: "image/jpeg" });
+    out.push({ url: await getDownloadURL(fileRef), path });
+  }
+  return out;
+}
+
 let submitting = false;
 
 $("btn-submit").addEventListener("click", async () => {
   if (submitting) return;
 
-  const comment = $("comment").value.trim();
+  const comment    = $("comment").value.trim();
   const reportTime = $("report_time").value;
+  const reporter   = $("reporter").value.trim();
 
   if (!form.target_type) { toast("対象区分を選んでください", "err"); goStep(0); return; }
   if (!form.category)    { toast("カテゴリを選んでください", "err"); goStep(1); return; }
+  if (!form.urgency)     { toast("緊急度を選んでください", "err"); return; }
   if (!comment)          { toast("トラブル詳細を入力してください", "err"); $("comment").focus(); return; }
+  if (!reporter)         { toast("報告者を入力してください", "err"); $("reporter").focus(); return; }
   if (!reportTime)       { toast("発生・報告日時を入力してください", "err"); $("report_time").focus(); return; }
   if (!db || !auth.currentUser) { toast("ログイン状態を確認できません", "err"); return; }
 
@@ -865,32 +1113,41 @@ $("btn-submit").addEventListener("click", async () => {
   $("submit-label").textContent = "送信中…";
 
   const webhook = lsGet(LS_WEBHOOK, "");
-  const record = {
-    target_type:          form.target_type,
-    category:             form.category,
-    quick_trouble_preset: form.quick_trouble_preset || "直接入力",
-    photo_data:           form.photo_data,
-    comment,
-    report_time:          reportTime,
-    webhook_endpoint:     webhook,
-  };
 
   try {
+    const photos = await uploadPhotos(form.photos);
+    $("submit-label").textContent = "送信中…";
+
+    const record = {
+      target_type:          form.target_type,
+      category:             form.category,
+      quick_trouble_preset: form.quick_trouble_preset || "直接入力",
+      urgency:              form.urgency,
+      reporter,
+      store_name:           lsGet(LS_STORE, ""),
+      photos,
+      comment,
+      report_time:          reportTime,
+      webhook_endpoint:     webhook,
+    };
+
     await addDoc(collection(db, COLLECTION), {
       ...record,
       status:       "未対応",
       reporter_uid: auth.currentUser.uid,
       created_at:   serverTimestamp(),
     });
+
+    rememberReporter(reporter);
     notifyWebhook(webhook, record);
     resetForm();
     toast("送信完了: 報告を記録しました");
     setView("history");
   } catch (err) {
     console.error(err);
-    const reason = err.code === "permission-denied"
-      ? "保存権限がありません（Firestore ルールを確認してください）"
-      : (err.message || "不明なエラー");
+    let reason = err.message || "不明なエラー";
+    if (err.code === "permission-denied")        reason = "保存権限がありません（Firestore ルールを確認してください）";
+    if (String(err.code).startsWith("storage/")) reason = "写真を送信できませんでした（Storage ルールを確認してください）";
     toast("送信できませんでした: " + reason, "err");
   } finally {
     submitting = false;
@@ -903,12 +1160,13 @@ function resetForm() {
   form.target_type = "";
   form.category = "";
   form.quick_trouble_preset = "";
-  form.photo_data = "";
+  form.urgency = DEFAULT_URGENCY;
+  clearPhotos();
   $("comment").value = "";
-  $("photo-img").removeAttribute("src");
-  hide($("photo-preview"));
-  show($("photo-empty"));
   $("report_time").value = nowLocalValue();   // 初期値は常に現在時刻
+  $("reporter").value = lsGet(LS_REPORTER, ""); // 同じ人が続けて報告することが多いので残す
+  renderUrgency();
+  renderReporterChips();
   renderTargets();
   goStep(0);
 }
@@ -918,8 +1176,13 @@ buildKeypad();
 renderPinDots();
 renderFixedChips();
 renderSavedChips();
+renderUrgency();
+renderPhotos();
 renderTargets();
 renderStepBar();
+buildFilters();
+$("reporter").value = lsGet(LS_REPORTER, "");
+renderReporterChips();
 $("report_time").value = nowLocalValue();
 setView("report");
 
