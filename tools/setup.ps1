@@ -377,37 +377,124 @@ $html = $html.Substring(0, $from) + $block.TrimEnd() + $html.Substring($to + $en
 Write-Ok "index.html を更新しました"
 Write-Info "apiKey は公開されても問題ない値です。実際の防御は次のルールです。"
 
-# ================================================= 6. セキュリティルール --
-Write-Step "Firestore と Storage のルールを適用します"
+# ========================================================== 6. Firestore --
+Write-Step "Firestore を用意します"
 
-# Firestore のデータベースが無ければ作る（既にあればエラーになるので黙って進む）
-& firebase firestore:databases:create "(default)" --location $Location --project $ProjectId 2>$null | Out-Null
+function Get-FirestoreRegion {
+  param([string]$Project)
+  $res = Invoke-FirebaseJson @("firestore:databases:list", "--project", $Project)
+  if (-not $res -or -not $res.result) { return $null }
+  foreach ($d in @($res.result)) {
+    $name = [string]$d.name
+    if ($name -and ($name -like "*/(default)")) {
+      if ($d.locationId) { return [string]$d.locationId }
+      if ($d.location)   { return [string]$d.location }
+    }
+  }
+  return $null
+}
 
-$firestoreOk = $false
+function New-FirestoreDatabase {
+  param([string]$Project, [string]$Region)
+  Write-Info "Firestore のデータベースを $Region に作ります…"
+  firebase firestore:databases:create "(default)" --location $Region --project $Project
+  return ($LASTEXITCODE -eq 0)
+}
+
+$region = Get-FirestoreRegion $ProjectId
+
+if (-not $region) {
+  # 先に自分で作る。firebase deploy に任せると、リージョンを選べないまま既定値で作られる。
+  if (-not (New-FirestoreDatabase $ProjectId $Location)) {
+    Write-Warn2 "CLI からデータベースを作成できませんでした。"
+    Show-FirebaseDebugLog
+    Stop-WithGuide "Firestore をコンソールで作ってください。" @(
+      "    https://console.firebase.google.com/project/$ProjectId/firestore",
+      "",
+      "  「データベースの作成」→ 本番環境モード → ロケーション $Location",
+      "",
+      "  ロケーションは後から変更できません。ここで $Location を選んでください。"
+    )
+  }
+  $region = Get-FirestoreRegion $ProjectId
+}
+
+if (-not $region) {
+  Write-Warn2 "リージョンを確認できませんでした（CLI が対応していない可能性があります）"
+  Write-Info "コンソールで確認してください: https://console.firebase.google.com/project/$ProjectId/firestore"
+} elseif ($region -eq $Location) {
+  Write-Ok "Firestore リージョン: $region"
+} else {
+  Write-Host ""
+  Write-Warn2 "Firestore のリージョンが $region です（想定は $Location）。"
+  Write-Info "日本から使うアプリなので、$Location でないと毎回の読み書きに往復の遅延が乗ります。"
+  Write-Info "リージョンは後から変更できません。変えるにはデータベースを作り直すしかなく、"
+  Write-Info "そのとき入っているデータはすべて失われます。"
+  $answer = Read-Host "    $Location で作り直しますか？ 作り直す場合は recreate と入力（このまま使う場合は Enter）"
+  if ($answer -eq "recreate") {
+    Write-Info "いまのデータベースを削除します…"
+    firebase firestore:databases:delete "(default)" --project $ProjectId --force
+    if ($LASTEXITCODE -ne 0) {
+      Write-Warn2 "削除できませんでした。"
+      Show-FirebaseDebugLog
+      Stop-WithGuide "コンソールから作り直してください。" @(
+        "    https://console.firebase.google.com/project/$ProjectId/firestore",
+        "",
+        "  データベースを削除してから、ロケーション $Location で作り直してください。"
+      )
+    }
+    if (-not (New-FirestoreDatabase $ProjectId $Location)) {
+      Write-Fail "作り直せませんでした。"
+      Show-FirebaseDebugLog
+      exit 1
+    }
+    $region = Get-FirestoreRegion $ProjectId
+    Write-Ok "Firestore リージョン: $region"
+  } else {
+    Write-Info "$region のまま進みます。"
+  }
+}
+
 firebase deploy --only firestore:rules --project $ProjectId
-if ($LASTEXITCODE -eq 0) { $firestoreOk = $true; Write-Ok "Firestore ルールを適用しました" }
-else { Write-Warn2 "Firestore ルールを適用できませんでした"; Show-FirebaseDebugLog }
+if ($LASTEXITCODE -eq 0) {
+  Write-Ok "Firestore ルールを適用しました"
+} else {
+  Write-Fail "Firestore ルールを適用できませんでした"
+  Show-FirebaseDebugLog
+  exit 1
+}
 
-$storageOk = $false
+# ============================================================ 7. Storage --
+Write-Step "Storage を用意します"
+
 firebase deploy --only storage --project $ProjectId
-if ($LASTEXITCODE -eq 0) { $storageOk = $true; Write-Ok "Storage ルールを適用しました" }
-else { Write-Warn2 "Storage ルールを適用できませんでした"; Show-FirebaseDebugLog }
-
-if (-not $firestoreOk -or -not $storageOk) {
-  $lines = @()
-  if (-not $firestoreOk) {
-    $lines += "Firestore を作成してください:"
-    $lines += "    https://console.firebase.google.com/project/$ProjectId/firestore"
-    $lines += "    「データベースの作成」→ 本番環境モード → リージョン $Location"
-    $lines += ""
-  }
-  if (-not $storageOk) {
-    $lines += "Storage を作成してください:"
-    $lines += "    https://console.firebase.google.com/project/$ProjectId/storage"
-    $lines += "    「始める」→ 本番環境モード → リージョン $Location"
-    $lines += "    （無料プランのままでは作れない場合があります。その場合は Blaze プランへの変更が必要です）"
-  }
-  Stop-WithGuide "Firebase コンソールでデータベースを作ってください。" $lines
+if ($LASTEXITCODE -eq 0) {
+  Write-Ok "Storage ルールを適用しました"
+} else {
+  Write-Warn2 "Storage がまだ作られていません"
+  Show-FirebaseDebugLog
+  Stop-WithGuide "Storage の作成だけは、コンソールでの操作が必要です。" @(
+    "Google が課金の同意を人に求めるため、ここは自動化できません。1回だけです。",
+    "",
+    "  1) 次のページを開いてください",
+    "       https://console.firebase.google.com/project/$ProjectId/storage",
+    "",
+    "  2) 「始める」を押してください",
+    "",
+    "  3) Blaze プランへの変更を求められます",
+    "       2024年以降に作られたプロジェクトでは Storage に Blaze が必要です。",
+    "       従量課金ですが無料枠は残ります（保存5GB、ダウンロード1GB/日など）。",
+    "       このアプリの規模なら請求は発生しません。",
+    "       心配であれば予算アラートを設定してください:",
+    "       https://console.cloud.google.com/billing/budgets?project=$ProjectId",
+    "",
+    "  4) 本番環境モードを選び、ロケーションは $Location にしてください",
+    "       Firestore と揃えておくと、写真の読み書きが速くなります。",
+    "",
+    "  Blaze にしたくない場合は、写真を Storage ではなく Firestore に",
+    "  戻す作りに変更できます（1枚のみ・容量の上限あり）。その場合は",
+    "  この画面を閉じて、その旨を伝えてください。"
+  )
 }
 
 # ==================================================== 7. 店舗アカウント --
