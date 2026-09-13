@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>現場トラブル・不具合クイック報告</title>
 <meta name="theme-color" content="#ea580c">
-<meta name="description" content="店舗現場のトラブル・不具合を10秒で報告するモバイルアプリ">
+<meta name="description" content="店舗現場のトラブル・不具合をスマホから手早く報告するアプリ">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
@@ -20,19 +20,14 @@
   body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
   .is-hidden { display: none !important; }
   .safe-b { padding-bottom: calc(0.5rem + env(safe-area-inset-bottom)); }
+  .safe-t { padding-top: calc(0.75rem + env(safe-area-inset-top)); }
   /* 下部タブの少し上に出す。上に出すと、読みたい見出しや絞り込みを覆ってしまう。 */
   .toast-pos { bottom: calc(5.5rem + env(safe-area-inset-bottom)); }
-  .safe-t { padding-top: calc(0.75rem + env(safe-area-inset-top)); }
-  /* large, thumb-friendly tiles */
-  .tile {
-    min-height: 88px;
-    transition: transform .12s ease, border-color .12s ease, background-color .12s ease;
-  }
+  .tile { min-height: 88px; transition: transform .12s ease, border-color .12s ease, background-color .12s ease; }
   .tile:active { transform: scale(.97); }
   .tile-on { border-color: #f97316; background-color: rgba(249,115,22,.16); }
   /* STEP1 は選択肢が2つだけなので、タイルを大きくして押しやすくする */
   #grid-target .tile { min-height: 132px; }
-  .key:active { transform: scale(.94); }
   .key { transition: transform .1s ease, background-color .1s ease; }
   .fade-in { animation: fade .22s ease both; }
   @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
@@ -40,11 +35,12 @@
   @keyframes shake { 10%,90%{transform:translateX(-3px)} 30%,70%{transform:translateX(5px)} 50%{transform:translateX(-5px)} }
   /* iOS は 16px 未満の入力欄にフォーカスすると自動で拡大し、そのまま戻らない。
      画面が横にずれてしまうので、入力欄のサイズが 16px を下回らないようにする。
-     Tailwind の text-sm / text-xs はクラスなので、element セレクタでは負ける。
+     Tailwind の text-sm / text-xs はクラスなので element セレクタでは負ける。
      input[class] なら詳細度で上回るため、確実に下限として効く。 */
   input[class], select[class], textarea[class] { font-size: 1rem; }
-  #login-code { font-size: 1.25rem; }   /* 店舗コードだけは大きく */
+  #login-code { font-size: 1.25rem; }
   ::-webkit-scrollbar { width: 0; height: 0; }
+  @media (prefers-reduced-motion: reduce) { .fade-in, .shake, .tile { animation: none; transition: none; } }
 </style>
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans antialiased">
@@ -55,33 +51,30 @@
     <div class="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-orange-500 to-orange-700 flex items-center justify-center shadow-lg shadow-orange-900/40">
       <i class="fa-solid fa-triangle-exclamation text-4xl text-white"></i>
     </div>
-    <h1 class="mt-5 text-lg font-bold tracking-tight">現場トラブル・不具合<br>クイック報告</h1>
-    <p class="mt-2 text-xs text-slate-400">店舗コードを入力してください</p>
+    <h1 id="auth-title" class="mt-5 text-lg font-bold tracking-tight" data-i18n="app_title">現場トラブル・不具合報告</h1>
+    <p class="mt-2 text-xs text-slate-400" data-i18n="login_lead">店舗コードを入力してください</p>
 
     <form id="login-form" class="mt-6 space-y-3">
-      <label for="login-code" class="block text-left text-[11px] font-bold text-slate-400">店舗コード</label>
+      <label for="login-code" class="block text-left text-[11px] font-bold text-slate-400" data-i18n="login_label">店舗コード</label>
       <div class="flex items-stretch rounded-xl border-2 border-slate-700 bg-slate-900 overflow-hidden focus-within:border-orange-500">
         <span class="px-4 flex items-center text-xl font-bold text-slate-400 bg-slate-800 select-none">fm</span>
         <input type="text" id="login-code" name="code" inputmode="numeric" pattern="[0-9]*"
-          autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="8" required
-          placeholder="0000"
-          class="flex-1 w-full bg-transparent px-3 py-3.5 text-xl font-bold tracking-widest tabular-nums text-white placeholder:text-slate-700 focus:outline-none">
+          autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="8" required placeholder="0000"
+          class="flex-1 w-full bg-transparent px-3 py-3.5 font-bold tracking-widest tabular-nums text-white placeholder:text-slate-700 focus:outline-none">
       </div>
       <button type="submit" id="btn-login"
-        class="w-full py-3.5 bg-orange-600 active:bg-orange-700 disabled:opacity-50 text-white font-bold rounded-xl text-base">
-        ログイン
-      </button>
+        class="w-full py-3.5 bg-orange-600 active:bg-orange-700 disabled:opacity-50 text-white font-bold rounded-xl text-base"
+        data-i18n="login_button">ログイン</button>
     </form>
     <p id="auth-msg" class="mt-3 text-xs text-rose-400 min-h-[1rem] text-center"></p>
-    <p class="mt-4 text-[10px] text-slate-600 leading-relaxed">
-      一度ログインすると、次回からは自動で入れます
-    </p>
+
+    <div id="lang-switch" class="mt-6 flex justify-center gap-1.5"></div>
+    <p class="mt-4 text-[10px] text-slate-600 leading-relaxed" data-i18n="login_persist">一度ログインすると、次回からは自動で入れます</p>
   </div>
   <div id="setup-warning" class="is-hidden fixed inset-x-0 bottom-0 safe-b px-5 pt-4 bg-amber-500/15 border-t border-amber-500/40">
     <p class="text-[11px] leading-relaxed text-amber-200 max-w-md mx-auto">
       <i class="fa-solid fa-circle-exclamation mr-1"></i>
-      <strong>未設定です。</strong> <code class="font-mono">index.html</code> 冒頭の <code class="font-mono">FIREBASE_CONFIG</code> と
-を入力すると認証・保存が有効になります。
+      <strong>未設定です。</strong> <code class="font-mono">index.html</code> 冒頭の <code class="font-mono">FIREBASE_CONFIG</code> を入力すると認証・保存が有効になります。
     </p>
   </div>
 </div>
@@ -92,7 +85,7 @@
   <header class="sticky top-0 z-30 bg-gradient-to-r from-orange-600 to-orange-500 shadow-lg shadow-orange-950/30 safe-t pb-3 px-4">
     <div class="max-w-md mx-auto flex items-center gap-3">
       <i class="fa-solid fa-triangle-exclamation text-white/90"></i>
-      <h1 class="flex-1 font-bold text-[15px] text-white leading-tight">現場トラブル・不具合報告</h1>
+      <h1 class="flex-1 font-bold text-[15px] text-white leading-tight" data-i18n="app_title">現場トラブル・不具合報告</h1>
       <button id="btn-settings" aria-label="設定" class="w-10 h-10 -mr-1 rounded-full hover:bg-black/20 active:bg-black/30 flex items-center justify-center text-white">
         <i class="fa-solid fa-gear text-lg"></i>
       </button>
@@ -103,148 +96,136 @@
 
     <!-- ----------------------------- 報告ビュー ----------------------------- -->
     <section id="view-report">
-
-      <!-- ステップ表示 -->
       <div class="flex items-center gap-1.5 mb-4">
         <div class="flex-1 flex gap-1.5" id="stepbar"></div>
         <span id="steplabel" class="text-[11px] font-semibold text-orange-400 tabular-nums whitespace-nowrap"></span>
       </div>
-
-      <!-- 選択済みサマリ（タップで戻れる） -->
       <div id="crumbs" class="flex flex-wrap gap-1.5 mb-3"></div>
 
       <!-- STEP 1 : 対象区分 -->
       <div id="step-0" class="step">
-        <h2 class="text-base font-bold mb-1">何のトラブルですか？</h2>
-        <p class="text-xs text-slate-400 mb-3">対象を選ぶと次に進みます</p>
+        <h2 class="text-base font-bold mb-1" data-i18n="q_target">何のトラブルですか？</h2>
+        <p class="text-xs text-slate-400 mb-3" data-i18n="q_target_sub">対象を選ぶと次に進みます</p>
         <div id="grid-target" class="grid grid-cols-1 gap-3"></div>
       </div>
 
-      <!-- STEP 2 : カテゴリ -->
+      <!-- STEP 2 : カテゴリ（アプリのみ） -->
       <div id="step-1" class="step is-hidden">
-        <h2 class="text-base font-bold mb-1">どの設備・機能ですか？</h2>
-        <p class="text-xs text-slate-400 mb-3">近いものを選んでください</p>
+        <h2 class="text-base font-bold mb-1" data-i18n="q_category">どの機能ですか？</h2>
+        <p class="text-xs text-slate-400 mb-3" data-i18n="q_category_sub">近いものを選んでください</p>
         <div id="grid-category" class="grid grid-cols-2 gap-3"></div>
       </div>
 
-      <!-- STEP 3 : 症状 -->
+      <!-- STEP 3 : 症状（アプリのみ） -->
       <div id="step-2" class="step is-hidden">
-        <h2 class="text-base font-bold mb-1">症状を選んでください</h2>
-        <p class="text-xs text-slate-400 mb-3">選ぶと詳細コメントに文章が入ります</p>
-        <div id="grid-preset" class="grid grid-cols-2 gap-3"></div>
+        <h2 class="text-base font-bold mb-1" data-i18n="q_symptom">症状を選んでください</h2>
+        <p class="text-xs text-slate-400 mb-3" data-i18n="q_symptom_sub">選ぶと詳細に文章が入ります</p>
+        <div id="grid-symptom" class="grid grid-cols-2 gap-3"></div>
       </div>
 
       <!-- STEP 4 : 詳細 -->
       <div id="step-3" class="step is-hidden space-y-4">
         <div>
-          <h2 class="text-base font-bold mb-1">詳細を確認して送信</h2>
-          <p class="text-xs text-slate-400">写真があると復旧が早くなります</p>
+          <h2 class="text-base font-bold mb-1" data-i18n="q_detail">詳細を確認して送信</h2>
+          <p class="text-xs text-slate-400" data-i18n="q_detail_sub">写真があると伝わりやすくなります</p>
         </div>
 
-        <!-- 緊急度 -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5">
           <label class="text-xs font-bold text-slate-300 flex items-center gap-2">
-            <i class="fa-solid fa-gauge-high text-orange-400"></i>緊急度<span class="text-[10px] font-bold text-orange-400">必須</span>
+            <i class="fa-solid fa-camera text-orange-400"></i><span data-i18n="photo">写真</span>
+            <span id="photo-count" class="text-[10px] font-medium text-slate-500" data-i18n="optional">任意</span>
           </label>
-          <div id="urgency-group" class="mt-2.5 grid grid-cols-3 gap-2"></div>
-        </div>
-
-        <!-- 写真 -->
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5">
-          <label class="text-xs font-bold text-slate-300 flex items-center gap-2">
-            <i class="fa-solid fa-camera text-orange-400"></i>写真
-            <span id="photo-count" class="text-[10px] font-medium text-slate-500">任意</span>
-          </label>
-          <div id="photo-grid" class="is-hidden mt-3 grid grid-cols-2 gap-2.5"></div>
+          <div id="photo-grid" class="is-hidden mt-3"></div>
           <div id="photo-actions" class="mt-3 grid grid-cols-2 gap-3">
             <button type="button" id="btn-camera" class="tile flex flex-col items-center justify-center gap-2 bg-slate-800/70 border-2 border-slate-700 rounded-xl py-4 active:bg-slate-800">
               <i class="fa-solid fa-camera text-2xl text-orange-400"></i>
-              <span class="text-xs font-bold">撮影する</span>
+              <span class="text-xs font-bold" data-i18n="take_photo">撮影する</span>
             </button>
             <button type="button" id="btn-album" class="tile flex flex-col items-center justify-center gap-2 bg-slate-800/70 border-2 border-slate-700 rounded-xl py-4 active:bg-slate-800">
               <i class="fa-solid fa-images text-2xl text-orange-400"></i>
-              <span class="text-xs font-bold">アルバム</span>
+              <span class="text-xs font-bold" data-i18n="from_album">アルバム</span>
             </button>
           </div>
-          <p id="photo-busy" class="is-hidden mt-3 text-xs text-orange-300"><i class="fa-solid fa-spinner fa-spin mr-1"></i>圧縮しています…</p>
+          <p id="photo-busy" class="is-hidden mt-3 text-xs text-orange-300"><i class="fa-solid fa-spinner fa-spin mr-1"></i><span data-i18n="compressing">圧縮しています…</span></p>
           <input type="file" id="file-camera" accept="image/*" capture="environment" class="hidden">
-          <input type="file" id="file-album" accept="image/*" multiple class="hidden">
+          <input type="file" id="file-album" accept="image/*" class="hidden">
         </div>
 
-        <!-- コメント -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5">
           <label for="comment" class="text-xs font-bold text-slate-300 flex items-center gap-2">
-            <i class="fa-solid fa-pen-to-square text-orange-400"></i>トラブル詳細<span class="text-[10px] font-bold text-orange-400">必須</span>
+            <i class="fa-solid fa-pen-to-square text-orange-400"></i><span data-i18n="detail">トラブル詳細</span>
+            <span class="text-[10px] font-bold text-orange-400" data-i18n="required">必須</span>
           </label>
-          <textarea id="comment" name="comment" rows="4" placeholder="具体的な状況を記入してください"
+          <textarea id="comment" name="comment" rows="4" data-i18n-ph="detail_ph" placeholder="具体的な状況を記入してください"
             class="mt-2.5 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-base leading-relaxed placeholder:text-slate-600 focus:border-orange-500 focus:outline-none"></textarea>
 
-          <p class="mt-3 text-[11px] font-bold text-slate-400">状況を追加</p>
+          <p class="mt-3 text-[11px] font-bold text-slate-400" data-i18n="add_situation">状況を追加</p>
           <div id="chips-fixed" class="mt-1.5 flex flex-wrap gap-1.5"></div>
 
           <div class="mt-3 flex items-center justify-between">
-            <p class="text-[11px] font-bold text-slate-400">よく使う文言</p>
+            <p class="text-[11px] font-bold text-slate-400" data-i18n="saved_phrases">よく使う文言</p>
             <button type="button" id="btn-save-phrase" class="text-[11px] font-bold text-orange-400 active:text-orange-300 px-2 py-1 -mr-2">
-              <i class="fa-solid fa-bookmark mr-1"></i>今の内容を登録
+              <i class="fa-solid fa-bookmark mr-1"></i><span data-i18n="save_phrase">今の内容を登録</span>
             </button>
           </div>
           <div id="chips-saved" class="mt-1.5 flex flex-wrap gap-1.5"></div>
         </div>
 
-        <!-- 報告者 -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5">
           <label for="reporter" class="text-xs font-bold text-slate-300 flex items-center gap-2">
-            <i class="fa-solid fa-user text-orange-400"></i>報告者<span class="text-[10px] font-bold text-orange-400">必須</span>
+            <i class="fa-solid fa-user text-orange-400"></i><span data-i18n="reporter">報告者</span>
+            <span class="text-[10px] font-bold text-orange-400" data-i18n="required">必須</span>
           </label>
           <div id="chips-reporter" class="mt-2.5 flex flex-wrap gap-1.5"></div>
           <input type="text" id="reporter" name="reporter" maxlength="24" autocomplete="off"
-            placeholder="名前を入力（次回からボタンで選べます）"
+            data-i18n-ph="reporter_ph" placeholder="名前を入力（次回からボタンで選べます）"
             class="mt-2 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-base placeholder:text-slate-600 focus:border-orange-500 focus:outline-none">
         </div>
 
-        <!-- 発生日時 -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5">
           <label for="report_time" class="text-xs font-bold text-slate-300 flex items-center gap-2">
-            <i class="fa-solid fa-clock text-orange-400"></i>発生・報告日時<span class="text-[10px] font-bold text-orange-400">必須</span>
+            <i class="fa-solid fa-clock text-orange-400"></i><span data-i18n="report_time">発生・報告日時</span>
+            <span class="text-[10px] font-bold text-orange-400" data-i18n="required">必須</span>
           </label>
           <input type="datetime-local" id="report_time" name="report_time"
             class="mt-2.5 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-base focus:border-orange-500 focus:outline-none">
           <button type="button" id="btn-now" class="mt-2 text-[11px] font-bold text-orange-400 active:text-orange-300">
-            <i class="fa-solid fa-rotate-right mr-1"></i>現在時刻にする
+            <i class="fa-solid fa-rotate-right mr-1"></i><span data-i18n="set_now">現在時刻にする</span>
           </button>
         </div>
 
         <button type="button" id="btn-submit"
           class="w-full py-4 bg-orange-600 active:bg-orange-700 disabled:opacity-50 disabled:active:bg-orange-600 text-white font-bold rounded-2xl shadow-lg shadow-orange-950/40 text-base flex items-center justify-center gap-2">
-          <i class="fa-solid fa-paper-plane"></i><span id="submit-label">この内容で報告する</span>
+          <i class="fa-solid fa-paper-plane"></i><span id="submit-label" data-i18n="submit">この内容で報告する</span>
         </button>
-        <p class="text-[10px] text-slate-500 leading-relaxed text-center px-2">
+        <p class="text-[10px] text-slate-500 leading-relaxed text-center px-2" data-i18n="disclaimer">
           入力内容は記録・保存されます。個人情報や機密情報は入力しないでください。
         </p>
       </div>
 
-      <!-- 戻る -->
       <button type="button" id="btn-back" class="is-hidden mt-4 text-xs font-bold text-slate-400 active:text-slate-200 px-2 py-2">
-        <i class="fa-solid fa-chevron-left mr-1.5"></i>前に戻る
+        <i class="fa-solid fa-chevron-left mr-1.5"></i><span data-i18n="back">前に戻る</span>
       </button>
     </section>
 
     <!-- ----------------------------- 履歴ビュー ----------------------------- -->
     <section id="view-history" class="is-hidden">
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="text-base font-bold">直近の報告</h2>
-        <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-          <i class="fa-solid fa-circle text-[6px] align-middle mr-1"></i>リアルタイム
-        </span>
+      <div class="flex items-center justify-between mb-3 gap-2">
+        <h2 class="text-base font-bold" data-i18n="history_title">直近の報告</h2>
+        <div class="flex items-center gap-2">
+          <button type="button" id="btn-copy-all"
+            class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-900 text-slate-300 active:bg-slate-800">
+            <i class="fa-solid fa-list-ul mr-1"></i><span data-i18n="copy_all">まとめてコピー</span>
+          </button>
+          <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 whitespace-nowrap">
+            <i class="fa-solid fa-circle text-[6px] align-middle mr-1"></i><span data-i18n="realtime">リアルタイム</span>
+          </span>
+        </div>
       </div>
       <div class="mb-3 space-y-2">
         <div id="filter-status" class="flex gap-1.5"></div>
-        <div class="grid grid-cols-2 gap-2">
-          <select id="filter-category" aria-label="カテゴリで絞り込む"
-            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2.5 text-base focus:border-orange-500 focus:outline-none"></select>
-          <select id="filter-urgency" aria-label="緊急度で絞り込む"
-            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2.5 text-base focus:border-orange-500 focus:outline-none"></select>
-        </div>
+        <select id="filter-category" aria-label="カテゴリで絞り込む"
+          class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2.5 text-base focus:border-orange-500 focus:outline-none"></select>
       </div>
       <div id="history-list" class="space-y-3"></div>
       <p id="history-empty" class="is-hidden text-center text-xs text-slate-500 py-16">
@@ -253,49 +234,89 @@
     </section>
   </main>
 
-  <!-- 下部タブ -->
   <nav class="fixed bottom-0 inset-x-0 z-30 bg-slate-900/95 backdrop-blur border-t border-slate-800 safe-b pt-2">
     <div class="max-w-md mx-auto grid grid-cols-2 gap-1 px-4">
       <button type="button" data-view="report" class="tabbtn flex flex-col items-center gap-1 py-1.5 rounded-xl">
-        <i class="fa-solid fa-triangle-exclamation text-lg"></i><span class="text-[10px] font-bold">報告する</span>
+        <i class="fa-solid fa-triangle-exclamation text-lg"></i><span class="text-[10px] font-bold" data-i18n="tab_report">報告する</span>
       </button>
       <button type="button" data-view="history" class="tabbtn flex flex-col items-center gap-1 py-1.5 rounded-xl">
-        <i class="fa-solid fa-list-ul text-lg"></i><span class="text-[10px] font-bold">履歴</span>
+        <i class="fa-solid fa-list-ul text-lg"></i><span class="text-[10px] font-bold" data-i18n="tab_history">履歴</span>
       </button>
     </div>
   </nav>
 </div>
 
 <!-- ============================= 設定モーダル ============================= -->
-<div id="settings-modal" class="is-hidden fixed inset-0 z-40 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center">
-  <div class="w-full max-w-md bg-slate-900 border-t sm:border border-slate-700 rounded-t-3xl sm:rounded-3xl p-5 safe-b fade-in">
+<div id="settings-modal" class="is-hidden fixed inset-0 z-40 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center overflow-y-auto">
+  <div class="w-full max-w-md bg-slate-900 border-t sm:border border-slate-700 rounded-t-3xl sm:rounded-3xl p-5 safe-b fade-in my-auto">
     <div class="flex items-center justify-between mb-4">
-      <h2 class="text-base font-bold"><i class="fa-solid fa-gear text-orange-400 mr-2"></i>設定</h2>
+      <h2 class="text-base font-bold"><i class="fa-solid fa-gear text-orange-400 mr-2"></i><span data-i18n="settings">設定</span></h2>
       <button type="button" id="btn-settings-close" aria-label="閉じる" class="w-9 h-9 rounded-full bg-slate-800 active:bg-slate-700 flex items-center justify-center">
         <i class="fa-solid fa-xmark"></i>
       </button>
     </div>
 
-    <label for="store_name" class="text-xs font-bold text-slate-300">店舗名</label>
-    <p class="text-[10px] text-slate-500 mt-1 leading-relaxed">報告と一緒に記録されます。複数店舗で使うときに、どの店からの報告か分かるようになります。</p>
-    <input type="text" id="store_name" maxlength="40" autocomplete="off" placeholder="例: 〇〇店"
+    <label class="text-xs font-bold text-slate-300" data-i18n="language">表示言語</label>
+    <div id="lang-switch-settings" class="mt-2 grid grid-cols-3 gap-2"></div>
+
+    <label for="store_name" class="mt-5 block text-xs font-bold text-slate-300" data-i18n="store_name">店舗名</label>
+    <p class="text-[10px] text-slate-500 mt-1 leading-relaxed" data-i18n="store_name_hint">報告と一緒に記録されます。</p>
+    <input type="text" id="store_name" maxlength="40" autocomplete="off" data-i18n-ph="store_name_ph" placeholder="例: 〇〇店"
       class="mt-2 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-base placeholder:text-slate-600 focus:border-orange-500 focus:outline-none">
 
-    <label for="webhook_endpoint" class="mt-5 block text-xs font-bold text-slate-300">通知先 Webhook URL</label>
-    <p class="text-[10px] text-slate-500 mt-1 leading-relaxed">Discord / Slack / GAS などの通知先。この端末に保存され、報告と一緒に送信されます。</p>
-    <input type="url" id="webhook_endpoint" name="webhook_endpoint" inputmode="url" placeholder="https://..."
-      class="mt-2 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-base placeholder:text-slate-600 focus:border-orange-500 focus:outline-none">
+    <p class="mt-5 text-xs font-bold text-slate-300" data-i18n="notify">通知先</p>
+    <p class="text-[10px] text-slate-500 mt-1 leading-relaxed" data-i18n="notify_hint">登録しておくと、送信後にワンタップでアプリを開けます。</p>
 
-    <button type="button" id="btn-settings-save" class="mt-4 w-full py-3.5 bg-orange-600 active:bg-orange-700 text-white font-bold rounded-xl text-sm">
-      保存する
-    </button>
+    <label for="notify_mail" class="mt-3 block text-[11px] font-bold text-slate-400" data-i18n="notify_mail">メールアドレス</label>
+    <input type="email" id="notify_mail" inputmode="email" autocapitalize="none" spellcheck="false" autocomplete="off"
+      data-i18n-ph="notify_mail_ph" placeholder="you@example.com"
+      class="mt-1 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-base placeholder:text-slate-600 focus:border-orange-500 focus:outline-none">
+
+    <label class="mt-3 flex items-center gap-3 py-1 cursor-pointer">
+      <input type="checkbox" id="notify_line" class="w-5 h-5 accent-orange-500 rounded">
+      <span class="text-sm font-bold text-slate-200" data-i18n="notify_line">LINE で送る</span>
+    </label>
+
+    <label for="webhook_endpoint" class="mt-4 block text-[11px] font-bold text-slate-400" data-i18n="webhook">Webhook URL</label>
+    <p class="text-[10px] text-slate-500 mt-1 leading-relaxed" data-i18n="webhook_hint">Discord や GAS 向け。分からなければ空欄で構いません。</p>
+    <input type="url" id="webhook_endpoint" inputmode="url" autocapitalize="none" spellcheck="false" placeholder="https://..."
+      class="mt-1.5 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-base placeholder:text-slate-600 focus:border-orange-500 focus:outline-none">
+
+    <button type="button" id="btn-settings-save" class="mt-5 w-full py-3.5 bg-orange-600 active:bg-orange-700 text-white font-bold rounded-xl text-sm"
+      data-i18n="save">保存する</button>
 
     <div class="mt-5 pt-4 border-t border-slate-800 flex items-center justify-between">
-      <p class="text-[11px] text-slate-500">ログイン中: <span id="who" class="font-mono"></span></p>
+      <p class="text-[11px] text-slate-500"><span data-i18n="logged_in">ログイン中</span>: <span id="who" class="font-mono"></span></p>
       <button type="button" id="btn-logout" class="text-[11px] font-bold text-rose-400 active:text-rose-300 px-2 py-1">
-        <i class="fa-solid fa-right-from-bracket mr-1"></i>ログアウト
+        <i class="fa-solid fa-right-from-bracket mr-1"></i><span data-i18n="logout">ログアウト</span>
       </button>
     </div>
+  </div>
+</div>
+
+<!-- ============================= 送信後の通知 ============================= -->
+<div id="notify-modal" class="is-hidden fixed inset-0 z-40 bg-black/70 backdrop-blur-sm flex items-center justify-center px-5">
+  <div class="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-3xl p-5 fade-in text-center">
+    <div class="w-14 h-14 mx-auto rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
+      <i class="fa-solid fa-circle-check text-2xl text-emerald-400"></i>
+    </div>
+    <h2 class="mt-3 text-base font-bold" data-i18n="notify_title">報告を記録しました</h2>
+    <p class="mt-1 text-xs text-slate-400" data-i18n="notify_lead">知らせますか？</p>
+
+    <div class="mt-4 space-y-2">
+      <a id="btn-notify-mail" href="#" class="is-hidden w-full py-3.5 bg-slate-800 border border-slate-700 active:bg-slate-700 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2">
+        <i class="fa-solid fa-paper-plane text-orange-400"></i><span data-i18n="notify_by_mail">メールで知らせる</span>
+      </a>
+      <a id="btn-notify-line" href="#" target="_blank" rel="noopener" class="is-hidden w-full py-3.5 bg-slate-800 border border-slate-700 active:bg-slate-700 text-white font-bold rounded-xl text-sm flex items-center justify-center gap-2">
+        <i class="fa-solid fa-tower-broadcast text-emerald-400"></i><span data-i18n="notify_by_line">LINE で送る</span>
+      </a>
+    </div>
+
+    <p id="notify-note" class="mt-3 text-[10px] text-slate-500 leading-relaxed" data-i18n="notify_no_photo">
+      メールと LINE には写真は付きません。文章だけが入ります。
+    </p>
+    <button type="button" id="btn-notify-close" class="mt-4 w-full py-3 text-sm font-bold text-slate-400 active:text-slate-200"
+      data-i18n="close">閉じる</button>
   </div>
 </div>
 
@@ -305,7 +326,6 @@
     <i id="toast-icon" class="mt-0.5"></i><span id="toast-text" class="flex-1"></span>
   </div>
 </div>
-
 <script type="module">
 /* ======================================================================
    設定 — tools/setup.ps1 がこのブロックを書き換えます。
@@ -327,15 +347,12 @@ const FIREBASE_CONFIG = {
 // このドメインへメールを送ることはない。照合は Firebase のサーバー側で行われる。
 //
 //   画面入力 fm0001  →  メール fm0001@fm.example.com  /  パスワード fm0001
-//
-// コード自体がその店舗の合言葉になる。コードはここには書かない。
 const LOGIN_PREFIX = "fm";
 const LOGIN_DOMAIN = "fm.example.com";
 const LOGIN_DIGITS = /^[0-9]{3,8}$/;
 
 const COLLECTION      = "trouble_reports";
 const HISTORY_LIMIT   = 50;
-const MAX_PHOTOS      = 1;
 // Firestore の 1 ドキュメント上限(1MiB)に対する安全圏。写真はここに直接入れる。
 const PHOTO_MAX_CHARS = 700000;
 
@@ -373,68 +390,15 @@ if (CONFIGURED && !SDK_ERROR) {
   db   = getFirestore(fb);
 }
 
-/* ====================== マスタデータ ====================== */
-const TARGET_TYPES = [
-  { value: "店舗設備・什器", icon: "fa-store",                 desc: "レジ・厨房機器・冷ケースなど" },
-  { value: "自作・業務アプリ", icon: "fa-mobile-screen-button", desc: "社内アプリ・ツールの不具合" },
-];
-
-const CATEGORIES = [
-  { value: "レジ・POS",        icon: "fa-cash-register" },
-  { value: "フライヤー・厨房",  icon: "fa-fire-burner" },
-  { value: "冷ケース・什器",    icon: "fa-snowflake" },
-  { value: "アプリ不具合",      icon: "fa-bug" },
-  { value: "通信・ネットワーク", icon: "fa-wifi" },
-  { value: "その他",           icon: "fa-ellipsis" },
-];
-
-// 対象区分ごとに「ありそうな順」に並べ替えるだけ。選択肢そのものは常に全件出す。
-const CATEGORY_ORDER = {
-  "店舗設備・什器":   ["レジ・POS", "フライヤー・厨房", "冷ケース・什器", "通信・ネットワーク", "その他", "アプリ不具合"],
-  "自作・業務アプリ": ["アプリ不具合", "通信・ネットワーク", "レジ・POS", "その他", "冷ケース・什器", "フライヤー・厨房"],
-};
-
-const PRESETS = [
-  { value: "ラベル・レシート詰まり",   icon: "fa-receipt",                 template: "ラベル／レシートが詰まり、出力できません。" },
-  { value: "油温が上がらない",         icon: "fa-temperature-arrow-down",  template: "フライヤーの油温が設定温度まで上がりません。" },
-  { value: "冷却温度の異常",           icon: "fa-temperature-high",        template: "冷ケースの庫内温度が規定値から外れています。" },
-  { value: "画面フリーズ・操作不能",   icon: "fa-hand",                    template: "画面がフリーズし、操作を受け付けません。" },
-  { value: "通信エラー・同期失敗",     icon: "fa-tower-broadcast",         template: "通信エラーが表示され、データの同期に失敗します。" },
-  { value: "破損・異音発生",           icon: "fa-wrench",                  template: "破損／異音が発生しています。" },
-  { value: "直接入力",                 icon: "fa-pen",                     template: "" },
-];
-
-const PRESET_HINT = {
-  "レジ・POS":        ["ラベル・レシート詰まり", "画面フリーズ・操作不能", "通信エラー・同期失敗"],
-  "フライヤー・厨房":  ["油温が上がらない", "破損・異音発生"],
-  "冷ケース・什器":    ["冷却温度の異常", "破損・異音発生"],
-  "アプリ不具合":      ["画面フリーズ・操作不能", "通信エラー・同期失敗"],
-  "通信・ネットワーク": ["通信エラー・同期失敗", "画面フリーズ・操作不能"],
-  "その他":            [],
-};
-
-const COMMENT_CHIPS = [
-  "営業に支障あり", "要至急対応", "使用停止中", "応急処置で継続中",
-  "再現性あり", "断続的に発生", "電源再投入済み", "業者へ連絡済み",
-];
-
-const URGENCY_LEVELS = [
-  { value: "至急",   hint: "営業が止まる",   on: "border-rose-500 bg-rose-500/20 text-rose-200" },
-  { value: "要対応", hint: "支障が出ている", on: "border-amber-500 bg-amber-500/20 text-amber-200" },
-  { value: "通常",   hint: "急ぎではない",   on: "border-slate-500 bg-slate-500/20 text-slate-200" },
-];
-const DEFAULT_URGENCY = "要対応";
-
-const STATUS_CYCLE = ["未対応", "対応中", "完了"];
-
-const STEP_LABELS = ["対象区分", "カテゴリ", "症状", "詳細"];
-
+/* ====================== 端末に覚えるもの ====================== */
+const LS_LANG      = "str.lang";
+const LS_STORE     = "str.store_name";
+const LS_MAIL      = "str.notify_mail";
+const LS_LINE      = "str.notify_line";
 const LS_WEBHOOK   = "str.webhook_endpoint";
 const LS_PHRASES   = "str.saved_phrases";
-const LS_STORE     = "str.store_name";
 const LS_REPORTERS = "str.reporters";
 const LS_REPORTER  = "str.last_reporter";
-
 
 /* ====================== ユーティリティ ====================== */
 const $  = (id) => document.getElementById(id);
@@ -456,6 +420,65 @@ function lsSet(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* 容量超過などは黙って無視 */ }
 }
 
+function escapeHTML(s) {
+  return String(s).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+/* ====================== 表示言語 ====================== */
+// 実際の判定は起動時に pickLanguage() で行う。
+// LANGS と I18N はこの下のブロックで定義されるため、ここでは触れない。
+let lang = "ja";
+
+function pickLanguage() {
+  const saved = lsGet(LS_LANG, "");
+  if (LANGS.some((l) => l.code === saved)) return saved;
+  const nav = (navigator.language || "ja").slice(0, 2);
+  return LANGS.some((l) => l.code === nav) ? nav : "ja";
+}
+
+// キーから今の言語の文言を引く。無ければ日本語に落とす。
+function t(key, ...args) {
+  const dict = I18N[lang] || I18N.ja;
+  let s = dict[key];
+  if (s === undefined) s = I18N.ja[key];
+  if (s === undefined) return key;
+  args.forEach((a, i) => { s = s.split("{" + i + "}").join(a); });
+  return s;
+}
+
+// マスタデータの label は言語ごとに持っている
+const nameOf = (item) => (item && item.label && (item.label[lang] || item.label.ja)) || "";
+
+function applyLanguage(code) {
+  if (!LANGS.some((l) => l.code === code)) return;
+  lang = code;
+  lsSet(LS_LANG, code);
+  document.documentElement.lang = code;
+  document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-ph]").forEach((el) => { el.placeholder = t(el.dataset.i18nPh); });
+  renderLangSwitches();
+  redrawAll();
+}
+
+function langButtonsHTML() {
+  return LANGS.map((l) => {
+    const on = l.code === lang;
+    return `<button type="button" data-lang="${l.code}"
+      class="text-xs font-bold px-3 py-2 rounded-lg border ${on
+        ? "border-orange-500 bg-orange-500/20 text-orange-200"
+        : "border-slate-700 bg-slate-900 text-slate-400"}">${l.label}</button>`;
+  }).join("");
+}
+function renderLangSwitches() {
+  $("lang-switch").innerHTML = langButtonsHTML();
+  $("lang-switch-settings").innerHTML = langButtonsHTML();
+}
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-lang]");
+  if (btn) applyLanguage(btn.dataset.lang);
+});
+
 let toastTimer = null;
 function toast(message, kind = "ok") {
   const styles = {
@@ -471,20 +494,416 @@ function toast(message, kind = "ok") {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => hide($("toast")), 4000);
 }
+/* ====================== 表示言語 ====================== */
+const LANGS = [
+  { code: "ja", label: "日本語" },
+  { code: "en", label: "English" },
+  { code: "ne", label: "नेपाली" },
+];
+
+const I18N = {
+  ja: {
+    app_title: "現場トラブル・不具合報告",
+    login_lead: "店舗コードを入力してください",
+    login_label: "店舗コード",
+    login_button: "ログイン",
+    login_checking: "確認中…",
+    login_persist: "一度ログインすると、次回からは自動で入れます",
+    login_need_code: "店舗コードの数字を入力してください",
+    err_bad_code: "店舗コードが違います",
+    err_no_user: "この店舗コードは登録されていません",
+    err_bad_format: "店舗コードの形式が正しくありません",
+    err_disabled: "この店舗コードは使えなくなっています",
+    err_too_many: "試行回数が多すぎます。しばらく待ってください",
+    err_network: "ネットワークに接続できません",
+    err_login: "ログインできませんでした",
+    err_offline: "通信に失敗しました。接続を確認してください",
+    reload: "再読み込み",
+    not_configured: "Firebase が未設定のため利用できません",
+
+    step_target: "対象区分", step_category: "カテゴリ", step_symptom: "症状", step_detail: "詳細",
+    q_target: "何のトラブルですか？", q_target_sub: "対象を選ぶと次に進みます",
+    q_category: "どの機能ですか？", q_category_sub: "近いものを選んでください",
+    q_symptom: "症状を選んでください", q_symptom_sub: "選ぶと詳細に文章が入ります",
+    q_detail: "詳細を確認して送信", q_detail_sub: "写真があると伝わりやすくなります",
+
+    photo: "写真", optional: "任意", required: "必須", photo_attached: "添付済み",
+    take_photo: "撮影する", from_album: "アルバム", compressing: "圧縮しています…",
+    photo_full: "写真は1枚までです", photo_too_big: "画像が大きすぎます。別の写真でお試しください",
+    photo_read_fail: "画像を読み込めませんでした", photo_parse_fail: "画像を解析できませんでした",
+
+    detail: "トラブル詳細", detail_ph: "具体的な状況を記入してください",
+    add_situation: "状況を追加",
+    saved_phrases: "よく使う文言", save_phrase: "今の内容を登録", no_phrases: "登録された文言はありません",
+    phrase_need_text: "コメントを入力してから登録してください",
+    phrase_dup: "すでに登録されています", phrase_saved: "よく使う文言に登録しました",
+
+    reporter: "報告者", reporter_ph: "名前を入力（次回からボタンで選べます）",
+    reporter_hint: "入力した名前は次回から候補に出ます",
+    report_time: "発生・報告日時", set_now: "現在時刻にする", set_now_done: "現在時刻にしました",
+
+    submit: "この内容で報告する", submitting: "送信中…",
+    disclaimer: "入力内容は記録・保存されます。個人情報や機密情報は入力しないでください。",
+    back: "前に戻る",
+
+    need_target: "対象区分を選んでください", need_detail: "トラブル詳細を入力してください",
+    need_reporter: "報告者を入力してください", need_time: "発生・報告日時を入力してください",
+    need_login: "ログイン状態を確認できません",
+    sent: "送信完了: 報告を記録しました",
+    send_failed: "送信できませんでした: ", no_permission: "保存権限がありません（Firestore ルールを確認してください）",
+
+    tab_report: "報告する", tab_history: "履歴",
+    history_title: "直近の報告", realtime: "リアルタイム",
+    f_all: "すべて", s_new: "未対応", s_doing: "対応中", s_done: "完了",
+    f_all_category: "すべてのカテゴリ",
+    history_empty: "まだ報告はありません", history_no_match: "条件に合う報告はありません",
+    copy_all: "まとめてコピー", copied: "コピーしました", copy_failed: "コピーできませんでした",
+    copy_none: "コピーする報告がありません",
+    status_changed: "「{0}」にしました",
+    status_failed: "状態を変更できませんでした: ",
+    history_failed: "履歴を取得できませんでした",
+    photo_yes: "写真あり",
+
+    settings: "設定", store_name: "店舗名",
+    store_name_hint: "報告と一緒に記録されます。複数店舗で使うときに、どの店からの報告か分かります。",
+    store_name_ph: "例: 〇〇店",
+    notify: "通知先", notify_hint: "登録しておくと、送信後にワンタップでアプリを開けます。",
+    notify_mail: "メールアドレス", notify_mail_ph: "you@example.com",
+    notify_line: "LINE で送る",
+    webhook: "Webhook URL", webhook_hint: "Discord や GAS 向け。分からなければ空欄で構いません。",
+    save: "保存する", saved: "設定を保存しました",
+    need_https: "https:// で始まるURLを入力してください",
+    bad_mail: "メールアドレスの形式が正しくありません",
+    language: "表示言語",
+    logged_in: "ログイン中", logout: "ログアウト",
+
+    notify_title: "報告を記録しました", notify_lead: "知らせますか？",
+    notify_by_mail: "メールで知らせる", notify_by_line: "LINE で送る", close: "閉じる",
+    notify_no_photo: "メールと LINE には写真は付きません。文章だけが入ります。",
+
+    subject: "【トラブル報告】",
+    l_store: "店舗", l_reporter: "報告者", l_target: "対象", l_category: "カテゴリ",
+    l_symptom: "症状", l_when: "発生", l_status: "状態", l_photo: "写真",
+  },
+
+  en: {
+    app_title: "Store Trouble Report",
+    login_lead: "Enter your store code",
+    login_label: "Store code",
+    login_button: "Log in",
+    login_checking: "Checking…",
+    login_persist: "You stay logged in on this device",
+    login_need_code: "Enter the digits of your store code",
+    err_bad_code: "Wrong store code",
+    err_no_user: "This store code is not registered",
+    err_bad_format: "The store code format is not valid",
+    err_disabled: "This store code has been disabled",
+    err_too_many: "Too many attempts. Please wait a moment",
+    err_network: "Cannot reach the network",
+    err_login: "Could not log in",
+    err_offline: "Connection failed. Check your network",
+    reload: "Reload",
+    not_configured: "Firebase is not configured",
+
+    step_target: "Type", step_category: "Area", step_symptom: "Symptom", step_detail: "Details",
+    q_target: "What kind of trouble?", q_target_sub: "Pick one to continue",
+    q_category: "Which part of the app?", q_category_sub: "Pick the closest one",
+    q_symptom: "Pick the symptom", q_symptom_sub: "This fills in the description",
+    q_detail: "Check and send", q_detail_sub: "A photo makes it much clearer",
+
+    photo: "Photo", optional: "optional", required: "required", photo_attached: "attached",
+    take_photo: "Take photo", from_album: "From album", compressing: "Compressing…",
+    photo_full: "Only one photo can be attached", photo_too_big: "Image is too large. Try another photo",
+    photo_read_fail: "Could not read the image", photo_parse_fail: "Could not process the image",
+
+    detail: "What happened", detail_ph: "Describe what you saw",
+    add_situation: "Add a note",
+    saved_phrases: "Saved phrases", save_phrase: "Save this text", no_phrases: "No saved phrases yet",
+    phrase_need_text: "Write something first",
+    phrase_dup: "Already saved", phrase_saved: "Saved",
+
+    reporter: "Your name", reporter_ph: "Type your name (a button next time)",
+    reporter_hint: "Names you type become buttons next time",
+    report_time: "When it happened", set_now: "Use current time", set_now_done: "Set to now",
+
+    submit: "Send this report", submitting: "Sending…",
+    disclaimer: "Reports are stored. Do not enter personal or confidential information.",
+    back: "Back",
+
+    need_target: "Pick a type", need_detail: "Describe what happened",
+    need_reporter: "Enter your name", need_time: "Enter the date and time",
+    need_login: "Cannot confirm you are logged in",
+    sent: "Sent. The report has been saved",
+    send_failed: "Could not send: ", no_permission: "Not allowed to save (check the Firestore rules)",
+
+    tab_report: "Report", tab_history: "History",
+    history_title: "Recent reports", realtime: "live",
+    f_all: "All", s_new: "Open", s_doing: "In progress", s_done: "Done",
+    f_all_category: "All areas",
+    history_empty: "No reports yet", history_no_match: "Nothing matches these filters",
+    copy_all: "Copy all", copied: "Copied", copy_failed: "Could not copy",
+    copy_none: "Nothing to copy",
+    status_changed: "Set to {0}",
+    status_failed: "Could not change the status: ",
+    history_failed: "Could not load the history",
+    photo_yes: "photo attached",
+
+    settings: "Settings", store_name: "Store name",
+    store_name_hint: "Saved with each report, so you can tell which store it came from.",
+    store_name_ph: "e.g. Minato",
+    notify: "Notify", notify_hint: "Save these and you can open the app in one tap after sending.",
+    notify_mail: "Email address", notify_mail_ph: "you@example.com",
+    notify_line: "Send via LINE",
+    webhook: "Webhook URL", webhook_hint: "For Discord or GAS. Leave it empty if unsure.",
+    save: "Save", saved: "Settings saved",
+    need_https: "The URL must start with https://",
+    bad_mail: "That email address is not valid",
+    language: "Language",
+    logged_in: "Signed in", logout: "Log out",
+
+    notify_title: "Report saved", notify_lead: "Let someone know?",
+    notify_by_mail: "Send email", notify_by_line: "Send on LINE", close: "Close",
+    notify_no_photo: "Email and LINE carry the text only, not the photo.",
+
+    subject: "[Trouble report] ",
+    l_store: "Store", l_reporter: "Reported by", l_target: "Type", l_category: "Area",
+    l_symptom: "Symptom", l_when: "When", l_status: "Status", l_photo: "Photo",
+  },
+
+  ne: {
+    app_title: "पसल समस्या रिपोर्ट",
+    login_lead: "पसल कोड हाल्नुहोस्",
+    login_label: "पसल कोड",
+    login_button: "लग इन",
+    login_checking: "जाँच गर्दै…",
+    login_persist: "एक पटक लग इन गरेपछि यो यन्त्रमा खुलिरहन्छ",
+    login_need_code: "पसल कोडको अंक हाल्नुहोस्",
+    err_bad_code: "पसल कोड मिलेन",
+    err_no_user: "यो पसल कोड दर्ता भएको छैन",
+    err_bad_format: "पसल कोडको ढाँचा मिलेन",
+    err_disabled: "यो पसल कोड बन्द गरिएको छ",
+    err_too_many: "धेरै पटक प्रयास भयो। केही बेर पर्खनुहोस्",
+    err_network: "नेटवर्कमा जोडिन सकिएन",
+    err_login: "लग इन हुन सकिएन",
+    err_offline: "जडान असफल भयो। नेटवर्क जाँच्नुहोस्",
+    reload: "पुनः लोड",
+    not_configured: "Firebase सेटअप भएको छैन",
+
+    step_target: "प्रकार", step_category: "भाग", step_symptom: "लक्षण", step_detail: "विवरण",
+    q_target: "कस्तो समस्या हो?", q_target_sub: "एउटा छान्नुहोस्",
+    q_category: "एपको कुन भाग?", q_category_sub: "नजिकको छान्नुहोस्",
+    q_symptom: "लक्षण छान्नुहोस्", q_symptom_sub: "छान्दा विवरण आफैं भरिन्छ",
+    q_detail: "जाँचेर पठाउनुहोस्", q_detail_sub: "फोटो भए बुझ्न सजिलो हुन्छ",
+
+    photo: "फोटो", optional: "ऐच्छिक", required: "अनिवार्य", photo_attached: "संलग्न भयो",
+    take_photo: "फोटो खिच्ने", from_album: "एल्बमबाट", compressing: "मिलाउँदै…",
+    photo_full: "एउटा मात्र फोटो राख्न मिल्छ", photo_too_big: "फोटो धेरै ठूलो छ। अर्को प्रयास गर्नुहोस्",
+    photo_read_fail: "फोटो पढ्न सकिएन", photo_parse_fail: "फोटो प्रशोधन गर्न सकिएन",
+
+    detail: "के भयो", detail_ph: "के देख्नुभयो लेख्नुहोस्",
+    add_situation: "अवस्था थप्ने",
+    saved_phrases: "सुरक्षित वाक्य", save_phrase: "यो पाठ सुरक्षित गर्ने", no_phrases: "अहिलेसम्म केही छैन",
+    phrase_need_text: "पहिले केही लेख्नुहोस्",
+    phrase_dup: "पहिले नै सुरक्षित छ", phrase_saved: "सुरक्षित भयो",
+
+    reporter: "तपाईंको नाम", reporter_ph: "नाम लेख्नुहोस् (अर्को पटक बटन बन्छ)",
+    reporter_hint: "लेखेको नाम अर्को पटक बटनमा देखिन्छ",
+    report_time: "कहिले भयो", set_now: "अहिलेको समय", set_now_done: "अहिलेको समय राखियो",
+
+    submit: "यो रिपोर्ट पठाउने", submitting: "पठाउँदै…",
+    disclaimer: "रिपोर्ट सुरक्षित हुन्छ। व्यक्तिगत वा गोप्य कुरा नलेख्नुहोस्।",
+    back: "पछाडि",
+
+    need_target: "प्रकार छान्नुहोस्", need_detail: "के भयो लेख्नुहोस्",
+    need_reporter: "आफ्नो नाम लेख्नुहोस्", need_time: "मिति र समय हाल्नुहोस्",
+    need_login: "लग इन पुष्टि हुन सकेन",
+    sent: "पठाइयो। रिपोर्ट सुरक्षित भयो",
+    send_failed: "पठाउन सकिएन: ", no_permission: "सुरक्षित गर्ने अनुमति छैन (Firestore नियम हेर्नुहोस्)",
+
+    tab_report: "रिपोर्ट", tab_history: "इतिहास",
+    history_title: "हालका रिपोर्ट", realtime: "प्रत्यक्ष",
+    f_all: "सबै", s_new: "बाँकी", s_doing: "काम हुँदै", s_done: "सकियो",
+    f_all_category: "सबै भाग",
+    history_empty: "अहिलेसम्म रिपोर्ट छैन", history_no_match: "मिल्ने रिपोर्ट भेटिएन",
+    copy_all: "सबै कपी", copied: "कपी भयो", copy_failed: "कपी गर्न सकिएन",
+    copy_none: "कपी गर्न केही छैन",
+    status_changed: "{0} बनाइयो",
+    status_failed: "अवस्था बदल्न सकिएन: ",
+    history_failed: "इतिहास ल्याउन सकिएन",
+    photo_yes: "फोटो छ",
+
+    settings: "सेटिङ", store_name: "पसलको नाम",
+    store_name_hint: "हरेक रिपोर्टसँग सुरक्षित हुन्छ, कुन पसलबाट आयो थाहा हुन्छ।",
+    store_name_ph: "जस्तै: मिनातो",
+    notify: "खबर पठाउने ठाउँ", notify_hint: "दर्ता गरे पठाएपछि एक ट्यापमा खोल्न सकिन्छ।",
+    notify_mail: "इमेल ठेगाना", notify_mail_ph: "you@example.com",
+    notify_line: "LINE बाट पठाउने",
+    webhook: "Webhook URL", webhook_hint: "Discord वा GAS का लागि। थाहा नभए खाली छोड्नुहोस्।",
+    save: "सुरक्षित", saved: "सेटिङ सुरक्षित भयो",
+    need_https: "URL https:// बाट सुरु हुनुपर्छ",
+    bad_mail: "इमेल ठेगाना मिलेन",
+    language: "भाषा",
+    logged_in: "लग इन", logout: "लग आउट",
+
+    notify_title: "रिपोर्ट सुरक्षित भयो", notify_lead: "कसैलाई खबर गर्ने?",
+    notify_by_mail: "इमेल पठाउने", notify_by_line: "LINE बाट पठाउने", close: "बन्द",
+    notify_no_photo: "इमेल र LINE मा पाठ मात्र जान्छ, फोटो जाँदैन।",
+
+    subject: "[समस्या रिपोर्ट] ",
+    l_store: "पसल", l_reporter: "रिपोर्ट गर्ने", l_target: "प्रकार", l_category: "भाग",
+    l_symptom: "लक्षण", l_when: "कहिले", l_status: "अवस्था", l_photo: "फोटो",
+  },
+};
+/* ====================== マスタデータ ======================
+   value は Firestore に保存する値で、常に日本語。
+   label は画面に出す文言で、言語ごとに持つ。
+   template は詳細欄に入る文章で、常に日本語。
+   こうすることで、ネパール語で操作しても報告は日本語で出てくる。 */
+
+const TARGET_EQUIPMENT = "店舗設備・什器";
+const TARGET_APP       = "自作・業務アプリ";
+
+const TARGET_TYPES = [
+  { value: TARGET_EQUIPMENT, icon: "fa-store",
+    label: { ja: "店舗設備・什器",   en: "Store equipment",  ne: "पसलका सामान" },
+    desc:  { ja: "レジ・厨房機器・冷ケースなど", en: "Registers, kitchen gear, coolers",
+             ne: "क्यास रजिस्टर, भान्साका सामान, चिस्यान" } },
+  { value: TARGET_APP, icon: "fa-mobile-screen-button",
+    label: { ja: "自作・業務アプリ", en: "In-house app",     ne: "आफ्नै एप" },
+    desc:  { ja: "社内アプリ・ツールの不具合", en: "Problems with our own apps and tools",
+             ne: "आफ्नै एप र टुलका समस्या" } },
+];
+
+// アプリ不具合のカテゴリ。店舗設備はカテゴリを選ばず自由入力に進む。
+const CATEGORIES = [
+  { value: "起動・ログイン",   icon: "fa-right-from-bracket",
+    label: { ja: "起動・ログイン", en: "Startup / Login", ne: "सुरु / लग इन" } },
+  { value: "表示・レイアウト", icon: "fa-images",
+    label: { ja: "表示・レイアウト", en: "Display / Layout", ne: "देखावट" } },
+  { value: "入力・保存",       icon: "fa-pen-to-square",
+    label: { ja: "入力・保存", en: "Input / Saving", ne: "टाइप / सुरक्षित" } },
+  { value: "検索・集計",       icon: "fa-list-ul",
+    label: { ja: "検索・集計", en: "Search / Totals", ne: "खोज / जोड" } },
+  { value: "印刷・出力",       icon: "fa-receipt",
+    label: { ja: "印刷・出力", en: "Print / Export", ne: "प्रिन्ट / निर्यात" } },
+  { value: "通信・同期",       icon: "fa-wifi",
+    label: { ja: "通信・同期", en: "Network / Sync", ne: "नेटवर्क / सिंक" } },
+  { value: "通知",             icon: "fa-tower-broadcast",
+    label: { ja: "通知", en: "Notifications", ne: "सूचना" } },
+  { value: "動作・その他",     icon: "fa-bug",
+    label: { ja: "動作・その他", en: "Behaviour / Other", ne: "चाल / अन्य" } },
+];
+
+const FREE_INPUT = "直接入力";
+
+// カテゴリごとの症状。選ぶと template が詳細欄に入る（日本語）。
+const SYMPTOMS = {
+  "起動・ログイン": [
+    { value: "起動しない",       icon: "fa-hand",        template: "アプリが起動しません。",
+      label: { ja: "起動しない", en: "Won't start", ne: "खुल्दैन" } },
+    { value: "画面が真っ白",     icon: "fa-images",      template: "起動しても画面が真っ白のままです。",
+      label: { ja: "画面が真っ白", en: "Blank screen", ne: "सेतो स्क्रिन" } },
+    { value: "ログインできない", icon: "fa-right-from-bracket", template: "ログインできません。",
+      label: { ja: "ログインできない", en: "Can't log in", ne: "लग इन हुँदैन" } },
+    { value: "勝手にログアウト", icon: "fa-rotate-right", template: "使用中に勝手にログアウトされます。",
+      label: { ja: "勝手にログアウト", en: "Logged out by itself", ne: "आफैं लग आउट" } },
+  ],
+  "表示・レイアウト": [
+    { value: "表示が崩れる",   icon: "fa-images",  template: "画面の表示が崩れています。",
+      label: { ja: "表示が崩れる", en: "Layout is broken", ne: "देखावट बिग्रियो" } },
+    { value: "文字が切れる",   icon: "fa-pen",     template: "文字が切れて読めません。",
+      label: { ja: "文字が切れる", en: "Text is cut off", ne: "अक्षर काटिन्छ" } },
+    { value: "画像が出ない",   icon: "fa-camera",  template: "画像が表示されません。",
+      label: { ja: "画像が出ない", en: "Images missing", ne: "फोटो देखिँदैन" } },
+    { value: "ボタンが押せない", icon: "fa-hand",  template: "ボタンを押しても反応しません。",
+      label: { ja: "ボタンが押せない", en: "Buttons don't respond", ne: "बटन काम गर्दैन" } },
+  ],
+  "入力・保存": [
+    { value: "入力できない",     icon: "fa-pen",          template: "入力欄に文字を入れられません。",
+      label: { ja: "入力できない", en: "Can't type", ne: "टाइप हुँदैन" } },
+    { value: "文字が消える",     icon: "fa-delete-left",  template: "入力した文字が消えてしまいます。",
+      label: { ja: "文字が消える", en: "Text disappears", ne: "अक्षर हराउँछ" } },
+    { value: "保存できない",     icon: "fa-bookmark",     template: "保存できません。",
+      label: { ja: "保存できない", en: "Can't save", ne: "सुरक्षित हुँदैन" } },
+    { value: "保存が消えている", icon: "fa-folder-open",  template: "保存したはずのデータが消えています。",
+      label: { ja: "保存が消えている", en: "Saved data is gone", ne: "सुरक्षित डाटा हरायो" } },
+  ],
+  "検索・集計": [
+    { value: "検索できない",     icon: "fa-list-ul",   template: "検索しても結果が出ません。",
+      label: { ja: "検索できない", en: "Search finds nothing", ne: "खोज्दा आउँदैन" } },
+    { value: "絞り込みが効かない", icon: "fa-ellipsis", template: "絞り込みが効きません。",
+      label: { ja: "絞り込みが効かない", en: "Filter does nothing", ne: "फिल्टर काम गर्दैन" } },
+    { value: "数が合わない",     icon: "fa-receipt",   template: "表示される件数や合計が合いません。",
+      label: { ja: "数が合わない", en: "Numbers don't match", ne: "संख्या मिल्दैन" } },
+    { value: "並び順がおかしい", icon: "fa-list-ul",   template: "並び順がおかしいです。",
+      label: { ja: "並び順がおかしい", en: "Wrong order", ne: "क्रम मिलेन" } },
+  ],
+  "印刷・出力": [
+    { value: "印刷できない",   icon: "fa-receipt",     template: "印刷できません。",
+      label: { ja: "印刷できない", en: "Can't print", ne: "प्रिन्ट हुँदैन" } },
+    { value: "印刷が崩れる",   icon: "fa-images",      template: "印刷すると表示が崩れます。",
+      label: { ja: "印刷が崩れる", en: "Print comes out wrong", ne: "प्रिन्ट बिग्रियो" } },
+    { value: "PDFが出ない",    icon: "fa-folder-open", template: "PDFが出力されません。",
+      label: { ja: "PDFが出ない", en: "No PDF", ne: "PDF आउँदैन" } },
+    { value: "書き出しできない", icon: "fa-paper-plane", template: "データを書き出せません。",
+      label: { ja: "書き出しできない", en: "Export fails", ne: "निर्यात हुँदैन" } },
+  ],
+  "通信・同期": [
+    { value: "通信エラー",   icon: "fa-wifi",            template: "通信エラーが表示されます。",
+      label: { ja: "通信エラー", en: "Network error", ne: "नेटवर्क त्रुटि" } },
+    { value: "同期されない", icon: "fa-rotate-right",    template: "データが同期されず最新になりません。",
+      label: { ja: "同期されない", en: "Not syncing", ne: "सिंक हुँदैन" } },
+    { value: "送信できない", icon: "fa-paper-plane",     template: "送信できません。",
+      label: { ja: "送信できない", en: "Can't submit", ne: "पठाउन मिल्दैन" } },
+    { value: "途中で止まる", icon: "fa-hand",            template: "処理が途中で止まります。",
+      label: { ja: "途中で止まる", en: "Stops midway", ne: "बीचमै रोकिन्छ" } },
+  ],
+  "通知": [
+    { value: "通知が来ない", icon: "fa-tower-broadcast", template: "通知が届きません。",
+      label: { ja: "通知が来ない", en: "No notifications", ne: "सूचना आउँदैन" } },
+    { value: "通知が重複",   icon: "fa-circle-exclamation", template: "同じ通知が何度も届きます。",
+      label: { ja: "通知が重複", en: "Duplicate notifications", ne: "सूचना दोहोरियो" } },
+    { value: "通知が遅い",   icon: "fa-clock",           template: "通知が届くのが遅すぎます。",
+      label: { ja: "通知が遅い", en: "Notifications are late", ne: "सूचना ढिलो" } },
+  ],
+  "動作・その他": [
+    { value: "動作が遅い", icon: "fa-clock",                 template: "動作がとても遅いです。",
+      label: { ja: "動作が遅い", en: "Very slow", ne: "धेरै ढिलो" } },
+    { value: "固まる",     icon: "fa-hand",                  template: "画面が固まって操作できません。",
+      label: { ja: "固まる", en: "Freezes", ne: "जाम हुन्छ" } },
+    { value: "突然落ちる", icon: "fa-triangle-exclamation",  template: "使用中に突然アプリが落ちます。",
+      label: { ja: "突然落ちる", en: "Crashes", ne: "अचानक बन्द" } },
+    { value: "エラーが出る", icon: "fa-circle-exclamation",  template: "エラーメッセージが表示されます。",
+      label: { ja: "エラーが出る", en: "Error message", ne: "त्रुटि सन्देश" } },
+  ],
+};
+
+// 詳細欄に足す一言。押すと日本語の文が入る。
+const COMMENT_CHIPS = [
+  { text: "営業に支障あり",   label: { ja: "営業に支障あり", en: "Affecting business", ne: "काममा असर" } },
+  { text: "今も続いている",   label: { ja: "今も続いている", en: "Still happening", ne: "अहिले पनि छ" } },
+  { text: "再現性あり",       label: { ja: "毎回起きる", en: "Happens every time", ne: "सधैं हुन्छ" } },
+  { text: "時々起きる",       label: { ja: "時々起きる", en: "Happens sometimes", ne: "कहिलेकाहीँ" } },
+  { text: "特定の端末だけ",   label: { ja: "特定の端末だけ", en: "One device only", ne: "एउटै यन्त्रमा" } },
+  { text: "複数人で発生",     label: { ja: "複数人で発生", en: "Several people", ne: "धेरै जनालाई" } },
+  { text: "再起動で直った",   label: { ja: "再起動で直った", en: "Fixed by restart", ne: "रिस्टार्टले ठीक" } },
+  { text: "業者へ連絡済み",   label: { ja: "業者へ連絡済み", en: "Vendor contacted", ne: "कम्पनीलाई खबर गरें" } },
+];
+
+const STATUS_CYCLE = ["未対応", "対応中", "完了"];
+const STATUS_KEY   = { "未対応": "s_new", "対応中": "s_doing", "完了": "s_done" };
 
 /* ====================== 認証画面 ====================== */
-// 店舗ごとに Firebase Authentication のアカウントを作る。
-// 照合はすべて Firebase 側で行われ、パスワードはこのコードを通るだけで保存しない。
 let authBusy = false;
 
 const AUTH_ERRORS = {
-  "auth/invalid-credential":     "店舗コードが違います",
-  "auth/wrong-password":         "店舗コードが違います",
-  "auth/user-not-found":         "この店舗コードは登録されていません",
-  "auth/invalid-email":          "店舗コードの形式が正しくありません",
-  "auth/user-disabled":          "この店舗コードは使えなくなっています",
-  "auth/too-many-requests":      "試行回数が多すぎます。しばらく待ってください",
-  "auth/network-request-failed": "ネットワークに接続できません",
+  "auth/invalid-credential":     "err_bad_code",
+  "auth/wrong-password":         "err_bad_code",
+  "auth/user-not-found":         "err_no_user",
+  "auth/invalid-email":          "err_bad_format",
+  "auth/user-disabled":          "err_disabled",
+  "auth/too-many-requests":      "err_too_many",
+  "auth/network-request-failed": "err_network",
 };
 
 function failAuth(message) {
@@ -497,231 +916,172 @@ $("login-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   if (authBusy) return;
 
-  if (SDK_ERROR)   { failAuth("通信に失敗しました。接続を確認してください"); return; }
-  if (!CONFIGURED) { failAuth("Firebase が未設定です"); return; }
+  if (SDK_ERROR)   { failAuth(t("err_offline")); return; }
+  if (!CONFIGURED) { failAuth(t("not_configured")); return; }
 
   const digits = $("login-code").value.replace(/[^0-9]/g, "");
-  if (!LOGIN_DIGITS.test(digits)) { failAuth("店舗コードの数字を入力してください"); return; }
+  if (!LOGIN_DIGITS.test(digits)) { failAuth(t("login_need_code")); return; }
   const code = LOGIN_PREFIX + digits;
 
   authBusy = true;
   $("btn-login").disabled = true;
-  $("auth-msg").innerHTML = '<span class="text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-1"></i>確認中…</span>';
+  $("auth-msg").innerHTML = '<span class="text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-1"></i>' + escapeHTML(t("login_checking")) + "</span>";
   try {
     await setPersistence(auth, browserLocalPersistence);
     await signInWithEmailAndPassword(auth, `${code}@${LOGIN_DOMAIN}`, code);
     $("login-code").value = "";
     $("auth-msg").textContent = "";
   } catch (err) {
-    failAuth(AUTH_ERRORS[err.code] || "ログインできませんでした");
+    failAuth(t(AUTH_ERRORS[err.code] || "err_login"));
   } finally {
     authBusy = false;
     $("btn-login").disabled = false;
   }
 });
 
-/* ====================== 報告フォームの状態 ====================== */
+/* ====================== 報告フォームの状態 ======================
+   店舗設備はカテゴリも症状も選ばせず、いきなり詳細に進む。
+   専用の問い合わせ先が別にあるため、ここで分類させても使い道がない。 */
+const FLOW_EQUIPMENT = [0, 3];
+const FLOW_APP       = [0, 1, 2, 3];
+
 const form = {
   target_type: "",
   category: "",
-  quick_trouble_preset: "",
-  urgency: DEFAULT_URGENCY,
+  symptom: "",
   photos: [],          // { dataUrl } を最大 MAX_PHOTOS 件
 };
-let step = 0;
+const MAX_PHOTOS = 1;
 
-function tileHTML({ value, icon, desc, selected, wide }) {
+let flow = FLOW_APP;
+let pos  = 0;          // flow の何番目にいるか
+
+const STEP_KEYS = ["step_target", "step_category", "step_symptom", "step_detail"];
+
+function tileHTML({ value, icon, name, desc, selected, wide }) {
   return `
-    <button type="button" data-value="${value}"
+    <button type="button" data-value="${escapeHTML(value)}"
       class="tile ${wide ? "col-span-2" : ""} ${selected ? "tile-on" : "border-slate-700 bg-slate-900"}
              border-2 rounded-2xl p-3.5 flex ${desc ? "items-center gap-3.5 text-left" : "flex-col items-center justify-center gap-2 text-center"}">
-      <i class="fa-solid ${icon} ${desc ? "text-2xl w-8" : "text-2xl"} text-orange-400"></i>
+      <i class="fa-solid ${icon} text-2xl text-orange-400"></i>
       <span class="${desc ? "" : "px-1"}">
-        <span class="block text-sm font-bold leading-snug">${value}</span>
-        ${desc ? `<span class="block text-[11px] text-slate-400 mt-0.5">${desc}</span>` : ""}
+        <span class="block text-sm font-bold leading-snug">${escapeHTML(name)}</span>
+        ${desc ? `<span class="block text-[11px] text-slate-400 mt-0.5">${escapeHTML(desc)}</span>` : ""}
       </span>
     </button>`;
 }
 
 function renderStepBar() {
-  $("stepbar").innerHTML = STEP_LABELS.map((_, i) =>
-    `<span class="h-1.5 flex-1 rounded-full ${i <= step ? "bg-orange-500" : "bg-slate-800"}"></span>`
+  $("stepbar").innerHTML = flow.map((_, i) =>
+    `<span class="h-1.5 flex-1 rounded-full ${i <= pos ? "bg-orange-500" : "bg-slate-800"}"></span>`
   ).join("");
-  $("steplabel").textContent = `${step + 1}/${STEP_LABELS.length} ${STEP_LABELS[step]}`;
+  $("steplabel").textContent = `${pos + 1}/${flow.length} ${t(STEP_KEYS[flow[pos]])}`;
 }
 
 function renderCrumbs() {
-  const picked = [
-    { step: 0, value: form.target_type },
-    { step: 1, value: form.category },
-    { step: 2, value: form.quick_trouble_preset },
-  ].filter((c) => c.value && c.step < step);
-
-  $("crumbs").innerHTML = picked.map((c) =>
-    `<button type="button" data-step="${c.step}"
+  const picked = [];
+  const target = TARGET_TYPES.find((x) => x.value === form.target_type);
+  if (target) picked.push({ at: 0, text: nameOf(target) });
+  const category = CATEGORIES.find((x) => x.value === form.category);
+  if (category) picked.push({ at: 1, text: nameOf(category) });
+  if (form.symptom) {
+    const list = SYMPTOMS[form.category] || [];
+    const sym = list.find((x) => x.value === form.symptom);
+    picked.push({ at: 2, text: sym ? nameOf(sym) : form.symptom });
+  }
+  // いま開いている段より前のものだけ出す
+  const shown = picked.filter((c) => flow.indexOf(c.at) >= 0 && flow.indexOf(c.at) < pos);
+  $("crumbs").innerHTML = shown.map((c) =>
+    `<button type="button" data-step="${c.at}"
        class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-orange-500/15 border border-orange-500/40 text-orange-300 active:bg-orange-500/25">
-       ${c.value}<i class="fa-solid fa-pen text-[9px] ml-1.5 opacity-70"></i>
+       ${escapeHTML(c.text)}<i class="fa-solid fa-pen text-[9px] ml-1.5 opacity-70"></i>
      </button>`
   ).join("");
 }
 
 $("crumbs").addEventListener("click", (e) => {
   const btn = e.target.closest("[data-step]");
-  if (btn) goStep(Number(btn.dataset.step));
+  if (btn) goPos(flow.indexOf(Number(btn.dataset.step)));
 });
 
 function renderTargets() {
-  $("grid-target").innerHTML = TARGET_TYPES
-    .map((t) => tileHTML({ ...t, selected: form.target_type === t.value }))
-    .join("");
+  $("grid-target").innerHTML = TARGET_TYPES.map((x) =>
+    tileHTML({ value: x.value, icon: x.icon, name: nameOf(x),
+               desc: x.desc[lang] || x.desc.ja, selected: form.target_type === x.value })
+  ).join("");
 }
 
 function renderCategories() {
-  const order = CATEGORY_ORDER[form.target_type] || CATEGORIES.map((c) => c.value);
-  const sorted = [...CATEGORIES].sort((a, b) => order.indexOf(a.value) - order.indexOf(b.value));
-  $("grid-category").innerHTML = sorted
-    .map((c) => tileHTML({ ...c, selected: form.category === c.value }))
-    .join("");
+  $("grid-category").innerHTML = CATEGORIES.map((c) =>
+    tileHTML({ value: c.value, icon: c.icon, name: nameOf(c), selected: form.category === c.value })
+  ).join("");
 }
 
-function renderPresets() {
-  const hint = PRESET_HINT[form.category] || [];
-  const rank = (p) => {
-    if (p.value === "直接入力") return 99;
-    const i = hint.indexOf(p.value);
-    return i === -1 ? 50 : i;
-  };
-  const sorted = [...PRESETS].sort((a, b) => rank(a) - rank(b));
-  $("grid-preset").innerHTML = sorted
-    .map((p) => tileHTML({ ...p, selected: form.quick_trouble_preset === p.value, wide: p.value === "直接入力" }))
-    .join("");
+function renderSymptoms() {
+  const list = SYMPTOMS[form.category] || [];
+  const tiles = list.map((s) =>
+    tileHTML({ value: s.value, icon: s.icon, name: nameOf(s), selected: form.symptom === s.value })
+  );
+  tiles.push(tileHTML({ value: FREE_INPUT, icon: "fa-pen", wide: true,
+                        name: { ja: "直接入力", en: "Write my own", ne: "आफैं लेख्ने" }[lang] || "直接入力",
+                        selected: form.symptom === FREE_INPUT }));
+  $("grid-symptom").innerHTML = tiles.join("");
 }
 
 $("grid-target").addEventListener("click", (e) => {
   const btn = e.target.closest("[data-value]");
   if (!btn) return;
   form.target_type = btn.dataset.value;
-  goStep(1);
+  if (form.target_type === TARGET_EQUIPMENT) {
+    // 設備は分類させずに自由入力へ
+    flow = FLOW_EQUIPMENT;
+    form.category = "";
+    form.symptom  = "";
+  } else {
+    flow = FLOW_APP;
+  }
+  goPos(1);
 });
 
 $("grid-category").addEventListener("click", (e) => {
   const btn = e.target.closest("[data-value]");
   if (!btn) return;
   form.category = btn.dataset.value;
-  goStep(2);
+  form.symptom = "";
+  goPos(2);
 });
 
-$("grid-preset").addEventListener("click", (e) => {
+$("grid-symptom").addEventListener("click", (e) => {
   const btn = e.target.closest("[data-value]");
   if (!btn) return;
-  const value = btn.dataset.value;
-  form.quick_trouble_preset = value;
-  const preset = PRESETS.find((p) => p.value === value);
+  form.symptom = btn.dataset.value;
+  const list = SYMPTOMS[form.category] || [];
+  const sym = list.find((x) => x.value === form.symptom);
   // 既存の入力を壊さない。空のときだけ定型文を入れる。
-  if (preset && preset.template && !$("comment").value.trim()) {
-    $("comment").value = preset.template;
-  }
-  goStep(3);
+  if (sym && sym.template && !$("comment").value.trim()) $("comment").value = sym.template;
+  goPos(3);
 });
 
-function goStep(next) {
-  step = next;
-  STEP_LABELS.forEach((_, i) => $("step-" + i).classList.add("is-hidden"));
-  const current = $("step-" + step);
+function goPos(next) {
+  pos = Math.max(0, Math.min(next, flow.length - 1));
+  STEP_KEYS.forEach((_, i) => $("step-" + i).classList.add("is-hidden"));
+  const current = $("step-" + flow[pos]);
   current.classList.remove("is-hidden");
   current.classList.remove("fade-in");
   void current.offsetWidth;      // reflow: 毎回アニメーションを走らせる
   current.classList.add("fade-in");
 
-  if (step === 1) renderCategories();
-  if (step === 2) renderPresets();
-  if (step === 0) renderTargets();
+  if (flow[pos] === 0) renderTargets();
+  if (flow[pos] === 1) renderCategories();
+  if (flow[pos] === 2) renderSymptoms();
 
   renderStepBar();
   renderCrumbs();
-  $("btn-back").classList.toggle("is-hidden", step === 0);
+  $("btn-back").classList.toggle("is-hidden", pos === 0);
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-$("btn-back").addEventListener("click", () => { if (step > 0) goStep(step - 1); });
-
-/* ====================== 定型文・よく使う文言 ====================== */
-function appendComment(text) {
-  const el = $("comment");
-  const base = el.value.trim();
-  if (base.includes(text)) return;
-  el.value = base ? `${base}\n${text}` : text;
-  el.focus();
-}
-
-function renderFixedChips() {
-  $("chips-fixed").innerHTML = COMMENT_CHIPS.map((c) =>
-    `<button type="button" data-chip="${c}"
-       class="text-[11px] font-bold px-2.5 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300 active:bg-slate-700">
-       + ${c}</button>`
-  ).join("");
-}
-
-function renderSavedChips() {
-  const phrases = lsGet(LS_PHRASES, []);
-  if (!phrases.length) {
-    $("chips-saved").innerHTML = `<p class="text-[11px] text-slate-600">登録された文言はありません</p>`;
-    return;
-  }
-  $("chips-saved").innerHTML = phrases.map((p, i) => `
-    <span class="inline-flex items-center rounded-full bg-orange-500/10 border border-orange-500/30 overflow-hidden">
-      <button type="button" data-phrase="${i}" class="text-[11px] font-bold pl-2.5 pr-1.5 py-1.5 text-orange-300 active:bg-orange-500/20 max-w-[200px] truncate">${escapeHTML(p)}</button>
-      <button type="button" data-del-phrase="${i}" aria-label="削除" class="px-2 py-1.5 text-orange-400/60 active:text-rose-400"><i class="fa-solid fa-xmark text-[10px]"></i></button>
-    </span>`
-  ).join("");
-}
-
-$("chips-fixed").addEventListener("click", (e) => {
-  const btn = e.target.closest("[data-chip]");
-  if (btn) appendComment(btn.dataset.chip);
-});
-
-$("chips-saved").addEventListener("click", (e) => {
-  const use = e.target.closest("[data-phrase]");
-  const del = e.target.closest("[data-del-phrase]");
-  const phrases = lsGet(LS_PHRASES, []);
-  if (use) { appendComment(phrases[Number(use.dataset.phrase)]); return; }
-  if (del) {
-    phrases.splice(Number(del.dataset.delPhrase), 1);
-    lsSet(LS_PHRASES, phrases);
-    renderSavedChips();
-  }
-});
-
-$("btn-save-phrase").addEventListener("click", () => {
-  const text = $("comment").value.trim();
-  if (!text) { toast("コメントを入力してから登録してください", "info"); return; }
-  const phrases = lsGet(LS_PHRASES, []);
-  if (phrases.includes(text)) { toast("すでに登録されています", "info"); return; }
-  phrases.unshift(text);
-  lsSet(LS_PHRASES, phrases.slice(0, 12));
-  renderSavedChips();
-  toast("よく使う文言に登録しました");
-});
-
-/* ====================== 緊急度 ====================== */
-function renderUrgency() {
-  $("urgency-group").innerHTML = URGENCY_LEVELS.map((u) => {
-    const on = form.urgency === u.value;
-    return `<button type="button" data-urgency="${u.value}"
-      class="border-2 rounded-xl py-2.5 px-1 leading-tight ${on ? u.on : "border-slate-700 bg-slate-900 text-slate-400"}">
-      <span class="block text-sm font-bold">${u.value}</span>
-      <span class="block text-[10px] mt-0.5 opacity-80">${u.hint}</span>
-    </button>`;
-  }).join("");
-}
-
-$("urgency-group").addEventListener("click", (e) => {
-  const btn = e.target.closest("[data-urgency]");
-  if (!btn) return;
-  form.urgency = btn.dataset.urgency;
-  renderUrgency();
-});
+$("btn-back").addEventListener("click", () => { if (pos > 0) goPos(pos - 1); });
 
 /* ====================== 報告者 ====================== */
 // 名前は入力された順に端末へ覚えていく。次回からはボタンで選べる。
@@ -729,8 +1089,7 @@ function renderReporterChips() {
   const names = lsGet(LS_REPORTERS, []);
   const current = $("reporter").value.trim();
   if (!names.length) {
-    $("chips-reporter").innerHTML =
-      `<p class="text-[11px] text-slate-600">入力した名前は次回から候補に出ます</p>`;
+    $("chips-reporter").innerHTML = `<p class="text-[11px] text-slate-600">${escapeHTML(t("reporter_hint"))}</p>`;
     return;
   }
   $("chips-reporter").innerHTML = names.map((n) => {
@@ -748,7 +1107,6 @@ $("chips-reporter").addEventListener("click", (e) => {
   $("reporter").value = btn.dataset.reporter;
   renderReporterChips();
 });
-
 $("reporter").addEventListener("input", renderReporterChips);
 
 function rememberReporter(name) {
@@ -758,20 +1116,79 @@ function rememberReporter(name) {
   lsSet(LS_REPORTER, name);
 }
 
+/* ====================== 定型文・よく使う文言 ====================== */
+function appendComment(text) {
+  const el = $("comment");
+  const base = el.value.trim();
+  if (base.includes(text)) return;
+  el.value = base ? `${base}\n${text}` : text;
+  el.focus();
+}
+
+function renderFixedChips() {
+  $("chips-fixed").innerHTML = COMMENT_CHIPS.map((c, i) =>
+    `<button type="button" data-chip="${i}"
+       class="text-[11px] font-bold px-2.5 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300 active:bg-slate-700">
+       + ${escapeHTML(nameOf(c))}</button>`
+  ).join("");
+}
+
+function renderSavedChips() {
+  const phrases = lsGet(LS_PHRASES, []);
+  if (!phrases.length) {
+    $("chips-saved").innerHTML = `<p class="text-[11px] text-slate-600">${escapeHTML(t("no_phrases"))}</p>`;
+    return;
+  }
+  $("chips-saved").innerHTML = phrases.map((p, i) => `
+    <span class="inline-flex items-center rounded-full bg-orange-500/10 border border-orange-500/30 overflow-hidden">
+      <button type="button" data-phrase="${i}" class="text-[11px] font-bold pl-2.5 pr-1.5 py-1.5 text-orange-300 active:bg-orange-500/20 max-w-[200px] truncate">${escapeHTML(p)}</button>
+      <button type="button" data-del-phrase="${i}" aria-label="削除" class="px-2 py-1.5 text-orange-400/60 active:text-rose-400"><i class="fa-solid fa-xmark text-[10px]"></i></button>
+    </span>`
+  ).join("");
+}
+
+$("chips-fixed").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-chip]");
+  if (btn) appendComment(COMMENT_CHIPS[Number(btn.dataset.chip)].text);
+});
+
+$("chips-saved").addEventListener("click", (e) => {
+  const use = e.target.closest("[data-phrase]");
+  const del = e.target.closest("[data-del-phrase]");
+  const phrases = lsGet(LS_PHRASES, []);
+  if (use) { appendComment(phrases[Number(use.dataset.phrase)]); return; }
+  if (del) {
+    phrases.splice(Number(del.dataset.delPhrase), 1);
+    lsSet(LS_PHRASES, phrases);
+    renderSavedChips();
+  }
+});
+
+$("btn-save-phrase").addEventListener("click", () => {
+  const text = $("comment").value.trim();
+  if (!text) { toast(t("phrase_need_text"), "info"); return; }
+  const phrases = lsGet(LS_PHRASES, []);
+  if (phrases.includes(text)) { toast(t("phrase_dup"), "info"); return; }
+  phrases.unshift(text);
+  lsSet(LS_PHRASES, phrases.slice(0, 12));
+  renderSavedChips();
+  toast(t("phrase_saved"));
+});
+
 /* ====================== 写真 ====================== */
 // Firestore のドキュメントに直接入れるので、data URL の文字数を基準に圧縮する。
 async function compressPhoto(file) {
   const dataUrl = await new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload  = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error("画像を読み込めませんでした"));
+    reader.onerror = () => reject(new Error(t("photo_read_fail")));
     reader.readAsDataURL(file);
   });
 
   const img = await new Promise((resolve, reject) => {
     const image = new Image();
     image.onload  = () => resolve(image);
-    image.onerror = () => reject(new Error("画像を解析できませんでした"));
+    image.onerror = () => reject(new Error(t("photo_parse_fail")));
     image.src = dataUrl;
   });
 
@@ -789,7 +1206,7 @@ async function compressPhoto(file) {
       if (out.length <= PHOTO_MAX_CHARS) return out;
     }
   }
-  throw new Error("画像が大きすぎます。別の写真でお試しください");
+  throw new Error(t("photo_too_big"));
 }
 
 function renderPhotos() {
@@ -797,10 +1214,10 @@ function renderPhotos() {
   grid.classList.toggle("is-hidden", form.photos.length === 0);
   grid.innerHTML = form.photos.map((p, i) => `
     <div class="relative">
-      <img src="${p.dataUrl}" alt="添付写真 ${i + 1}"
-        class="w-full aspect-square object-cover rounded-xl border border-slate-700 bg-black">
-      <button type="button" data-remove-photo="${i}" aria-label="${i + 1}枚目の写真を削除"
-        class="absolute top-1.5 right-1.5 w-8 h-8 rounded-full bg-black/70 backdrop-blur flex items-center justify-center text-white active:bg-black">
+      <img src="${p.dataUrl}" alt="${escapeHTML(t("photo"))} ${i + 1}"
+        class="w-full max-h-56 object-contain rounded-xl border border-slate-700 bg-black">
+      <button type="button" data-remove-photo="${i}" aria-label="削除"
+        class="absolute top-1.5 right-1.5 w-9 h-9 rounded-full bg-black/70 backdrop-blur flex items-center justify-center text-white active:bg-black">
         <i class="fa-solid fa-xmark text-xs"></i>
       </button>
       <span class="absolute bottom-1.5 left-1.5 text-[10px] font-mono px-1.5 py-0.5 rounded bg-black/70 text-slate-300">
@@ -808,9 +1225,8 @@ function renderPhotos() {
       </span>
     </div>`).join("");
 
-  const full = form.photos.length >= MAX_PHOTOS;
-  $("photo-actions").classList.toggle("is-hidden", full);
-  $("photo-count").textContent = form.photos.length ? "添付済み" : "任意";
+  $("photo-actions").classList.toggle("is-hidden", form.photos.length >= MAX_PHOTOS);
+  $("photo-count").textContent = form.photos.length ? t("photo_attached") : t("optional");
 }
 
 $("photo-grid").addEventListener("click", (e) => {
@@ -824,20 +1240,14 @@ async function handleFiles(input) {
   const files = [...(input.files || [])];
   input.value = "";                                 // 同じ写真を選び直せるように
   if (!files.length) return;
-
-  const room = MAX_PHOTOS - form.photos.length;
-  if (room <= 0) { toast(`写真は${MAX_PHOTOS}枚までです`, "info"); return; }
-  const accepted = files.slice(0, room);
-  if (files.length > room) toast(`${MAX_PHOTOS}枚まで。${room}枚だけ取り込みました`, "info");
+  if (form.photos.length >= MAX_PHOTOS) { toast(t("photo_full"), "info"); return; }
 
   show($("photo-busy"));
-  for (const file of accepted) {
-    try {
-      form.photos.push({ dataUrl: await compressPhoto(file) });
-      renderPhotos();
-    } catch (err) {
-      toast(err.message, "err");
-    }
+  try {
+    form.photos.push({ dataUrl: await compressPhoto(files[0]) });
+    renderPhotos();
+  } catch (err) {
+    toast(err.message, "err");
   }
   hide($("photo-busy"));
 }
@@ -855,12 +1265,14 @@ function clearPhotos() {
 /* ====================== 日時 ====================== */
 $("btn-now").addEventListener("click", () => {
   $("report_time").value = nowLocalValue();
-  toast("現在時刻にしました", "info");
+  toast(t("set_now_done"), "info");
 });
 
 /* ====================== 設定 ====================== */
 $("btn-settings").addEventListener("click", () => {
   $("store_name").value       = lsGet(LS_STORE, "");
+  $("notify_mail").value      = lsGet(LS_MAIL, "");
+  $("notify_line").checked    = Boolean(lsGet(LS_LINE, false));
   $("webhook_endpoint").value = lsGet(LS_WEBHOOK, "");
   const email = (auth && auth.currentUser) ? auth.currentUser.email : "";
   $("who").textContent = email ? email.split("@")[0] : "-";
@@ -870,14 +1282,20 @@ $("btn-settings-close").addEventListener("click", () => hide($("settings-modal")
 $("settings-modal").addEventListener("click", (e) => {
   if (e.target === $("settings-modal")) hide($("settings-modal"));
 });
+
 $("btn-settings-save").addEventListener("click", () => {
-  const url = $("webhook_endpoint").value.trim();
-  if (url && !/^https:\/\//i.test(url)) { toast("https:// で始まるURLを入力してください", "err"); return; }
-  lsSet(LS_STORE, $("store_name").value.trim());
+  const url  = $("webhook_endpoint").value.trim();
+  const mail = $("notify_mail").value.trim();
+  if (url && !/^https:\/\//i.test(url)) { toast(t("need_https"), "err"); return; }
+  if (mail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)) { toast(t("bad_mail"), "err"); return; }
+  lsSet(LS_STORE,   $("store_name").value.trim());
+  lsSet(LS_MAIL,    mail);
+  lsSet(LS_LINE,    $("notify_line").checked);
   lsSet(LS_WEBHOOK, url);
   hide($("settings-modal"));
-  toast("設定を保存しました");
+  toast(t("saved"));
 });
+
 $("btn-logout").addEventListener("click", async () => {
   hide($("settings-modal"));
   if (auth) await signOut(auth);
@@ -889,8 +1307,7 @@ function setView(name) {
   $("view-history").classList.toggle("is-hidden", name !== "history");
   document.querySelectorAll(".tabbtn").forEach((b) => {
     const on = b.dataset.view === name;
-    b.className = "tabbtn flex flex-col items-center gap-1 py-1.5 rounded-xl " +
-      (on ? "text-orange-400" : "text-slate-500");
+    b.className = "tabbtn flex flex-col items-center gap-1 py-1.5 rounded-xl " + (on ? "text-orange-400" : "text-slate-500");
   });
   window.scrollTo({ top: 0 });
 }
@@ -904,47 +1321,61 @@ const STATUS_STYLE = {
   "対応中": "bg-amber-500/15 text-amber-300 border-amber-500/40",
   "完了":   "bg-emerald-500/15 text-emerald-300 border-emerald-500/40",
 };
-const URGENCY_STYLE = {
-  "至急":   "bg-rose-600/25 text-rose-200 border-rose-500/50",
-  "要対応": "bg-amber-500/15 text-amber-300 border-amber-500/40",
-  "通常":   "bg-slate-700/40 text-slate-300 border-slate-600",
-};
 
 let historyDocs = [];
-const filters = { status: "すべて", category: "", urgency: "" };
+const filters = { status: "", category: "" };   // 空文字は「すべて」
 
-function relativeTime(date) {
-  if (!date) return "送信中…";
-  const diff = Math.floor((Date.now() - date.getTime()) / 1000);
-  if (diff < 60)    return "たった今";
-  if (diff < 3600)  return `${Math.floor(diff / 60)}分前`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}時間前`;
-  return date.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" });
+// 保存値（日本語）から、いまの言語の表示名を引く
+function categoryName(value) {
+  if (!value) return "";
+  if (value === TARGET_EQUIPMENT) {
+    const tgt = TARGET_TYPES.find((x) => x.value === value);
+    return tgt ? nameOf(tgt) : value;
+  }
+  const c = CATEGORIES.find((x) => x.value === value);
+  return c ? nameOf(c) : value;
+}
+function symptomName(category, value) {
+  if (!value || value === FREE_INPUT) return "";
+  const list = SYMPTOMS[category] || [];
+  const s = list.find((x) => x.value === value);
+  return s ? nameOf(s) : value;
+}
+function categoryIcon(value) {
+  if (value === TARGET_EQUIPMENT) return "fa-store";
+  const c = CATEGORIES.find((x) => x.value === value);
+  return c ? c.icon : "fa-ellipsis";
 }
 
-function escapeHTML(s) {
-  return String(s).replace(/[&<>"']/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function relativeTime(date) {
+  if (!date) return "…";
+  const diff = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (diff < 60)    return { ja: "たった今", en: "just now", ne: "भर्खरै" }[lang] || "たった今";
+  if (diff < 3600)  return { ja: `${Math.floor(diff / 60)}分前`, en: `${Math.floor(diff / 60)} min ago`, ne: `${Math.floor(diff / 60)} मिनेट अघि` }[lang];
+  if (diff < 86400) return { ja: `${Math.floor(diff / 3600)}時間前`, en: `${Math.floor(diff / 3600)} h ago`, ne: `${Math.floor(diff / 3600)} घण्टा अघि` }[lang];
+  return date.toLocaleDateString(lang === "ja" ? "ja-JP" : "en-GB", { month: "numeric", day: "numeric" });
 }
 
 function renderStatusChips() {
-  $("filter-status").innerHTML = ["すべて", ...STATUS_CYCLE].map((v) => {
-    const on = filters.status === v;
-    return `<button type="button" data-filter-status="${v}"
+  const items = [{ value: "", key: "f_all" }].concat(STATUS_CYCLE.map((s) => ({ value: s, key: STATUS_KEY[s] })));
+  $("filter-status").innerHTML = items.map((it) => {
+    const on = filters.status === it.value;
+    return `<button type="button" data-filter-status="${it.value}"
       class="flex-1 text-[11px] font-bold py-2 rounded-lg border ${on
         ? "border-orange-500 bg-orange-500/20 text-orange-200"
-        : "border-slate-700 bg-slate-900 text-slate-400"}">${v}</button>`;
+        : "border-slate-700 bg-slate-900 text-slate-400"}">${escapeHTML(t(it.key))}</button>`;
   }).join("");
 }
 
 function buildFilters() {
   renderStatusChips();
-  $("filter-category").innerHTML =
-    `<option value="">すべてのカテゴリ</option>` +
-    CATEGORIES.map((c) => `<option value="${c.value}">${c.value}</option>`).join("");
-  $("filter-urgency").innerHTML =
-    `<option value="">すべての緊急度</option>` +
-    URGENCY_LEVELS.map((u) => `<option value="${u.value}">${u.value}</option>`).join("");
+  const sel = $("filter-category");
+  const keep = filters.category;
+  const opts = [`<option value="">${escapeHTML(t("f_all_category"))}</option>`];
+  opts.push(`<option value="${escapeHTML(TARGET_EQUIPMENT)}">${escapeHTML(categoryName(TARGET_EQUIPMENT))}</option>`);
+  CATEGORIES.forEach((c) => opts.push(`<option value="${escapeHTML(c.value)}">${escapeHTML(nameOf(c))}</option>`));
+  sel.innerHTML = opts.join("");
+  sel.value = keep;
 }
 
 $("filter-status").addEventListener("click", (e) => {
@@ -955,57 +1386,43 @@ $("filter-status").addEventListener("click", (e) => {
   renderHistory();
 });
 $("filter-category").addEventListener("change", (e) => { filters.category = e.target.value; renderHistory(); });
-$("filter-urgency").addEventListener("change",  (e) => { filters.urgency  = e.target.value; renderHistory(); });
 
-function photoUrls(d) {
-  // 旧形式(photo_data に Base64 を直接持つ報告)も表示できるようにする
-  if (Array.isArray(d.photos) && d.photos.length) return d.photos.map((p) => p.url).filter(Boolean);
-  return d.photo_data ? [d.photo_data] : [];
+function visibleDocs() {
+  return historyDocs.filter((d) =>
+    (!filters.status   || (d.status || "未対応") === filters.status) &&
+    (!filters.category || d.category === filters.category));
 }
 
 function renderHistory() {
-  const list = historyDocs.filter((d) =>
-    (filters.status === "すべて" || (d.status || "未対応") === filters.status) &&
-    (!filters.category || d.category === filters.category) &&
-    (!filters.urgency  || d.urgency  === filters.urgency));
-
+  const list = visibleDocs();
   $("history-empty").classList.toggle("is-hidden", list.length > 0);
-  $("history-empty-text").textContent = historyDocs.length
-    ? "条件に合う報告はありません"
-    : "まだ報告はありません";
+  $("history-empty-text").textContent = historyDocs.length ? t("history_no_match") : t("history_empty");
 
   $("history-list").innerHTML = list.map((d) => {
-    const status  = d.status || "未対応";
-    const badge   = STATUS_STYLE[status] || STATUS_STYLE["未対応"];
-    const urgency = d.urgency || "";
-    const icon    = (CATEGORIES.find((c) => c.value === d.category) || {}).icon || "fa-ellipsis";
-    const when    = d.created_at && d.created_at.toDate ? d.created_at.toDate() : null;
-    const photos  = photoUrls(d);
-    const who     = [d.store_name, d.reporter].filter(Boolean).map(escapeHTML).join(" ・ ");
+    const status = d.status || "未対応";
+    const badge  = STATUS_STYLE[status] || STATUS_STYLE["未対応"];
+    const when   = d.created_at && d.created_at.toDate ? d.created_at.toDate() : null;
+    const cat    = categoryName(d.category);
+    const sym    = symptomName(d.category, d.quick_trouble_preset);
+    const who    = [d.store_name, d.reporter].filter(Boolean).map(escapeHTML).join(" ・ ");
 
     return `
       <article class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 fade-in">
         <div class="flex items-center gap-1.5 mb-2 flex-wrap">
           <button type="button" data-status-id="${escapeHTML(d.id)}" data-status="${escapeHTML(status)}"
             class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${badge} active:opacity-70">
-            ${escapeHTML(status)}<i class="fa-solid fa-rotate-right text-[9px] ml-1 opacity-60"></i>
+            ${escapeHTML(t(STATUS_KEY[status] || "s_new"))}<i class="fa-solid fa-rotate-right text-[9px] ml-1 opacity-60"></i>
           </button>
-          ${urgency ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${URGENCY_STYLE[urgency] || URGENCY_STYLE["通常"]}">${escapeHTML(urgency)}</span>` : ""}
-          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300">
-            <i class="fa-solid ${icon} mr-1"></i>${escapeHTML(d.category || "-")}
-          </span>
-          <span class="ml-auto text-[10px] text-slate-500">${relativeTime(when)}</span>
+          ${cat ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300">
+            <i class="fa-solid ${categoryIcon(d.category)} mr-1"></i>${escapeHTML(cat)}</span>` : ""}
+          <span class="ml-auto text-[10px] text-slate-500">${escapeHTML(relativeTime(when))}</span>
         </div>
-        ${photos.length ? `<div class="grid ${photos.length > 1 ? "grid-cols-2" : "grid-cols-1"} gap-1.5 mb-2">
-          ${photos.map((u, i) => `<img src="${escapeHTML(u)}" alt="添付写真 ${i + 1}" loading="lazy"
-            class="w-full ${photos.length > 1 ? "aspect-square" : "max-h-48"} object-cover rounded-xl border border-slate-800 bg-black">`).join("")}
-        </div>` : ""}
+        ${d.photo_data ? `<img src="${escapeHTML(d.photo_data)}" alt="" loading="lazy"
+          class="w-full max-h-48 object-cover rounded-xl mb-2 border border-slate-800 bg-black">` : ""}
         <p class="text-sm leading-relaxed whitespace-pre-wrap break-words">${escapeHTML(d.comment || "")}</p>
         <p class="mt-2 text-[10px] text-slate-500 leading-relaxed">
-          ${who ? escapeHTML(who) + "<br>" : ""}
-          ${escapeHTML(d.target_type || "-")}
-          ${d.quick_trouble_preset && d.quick_trouble_preset !== "直接入力" ? " ・ " + escapeHTML(d.quick_trouble_preset) : ""}
-          ${d.report_time ? " ・ 発生 " + escapeHTML(d.report_time.replace("T", " ")) : ""}
+          ${who ? who + "<br>" : ""}
+          ${sym ? escapeHTML(sym) + " ・ " : ""}${d.report_time ? escapeHTML(d.report_time.replace("T", " ")) : ""}
         </p>
       </article>`;
   }).join("");
@@ -1024,13 +1441,43 @@ $("history-list").addEventListener("click", async (e) => {
       status_updated_at: serverTimestamp(),
       status_updated_by: auth.currentUser ? auth.currentUser.uid : "",
     });
-    toast(`「${next}」にしました`);
+    toast(t("status_changed", t(STATUS_KEY[next])));
   } catch (err) {
     btn.disabled = false;
-    const reason = err.code === "permission-denied"
-      ? "権限がありません（Firestore ルールを確認してください）"
-      : (err.message || "不明なエラー");
-    toast("状態を変更できませんでした: " + reason, "err");
+    toast(t("status_failed") + (err.code === "permission-denied" ? t("no_permission") : (err.message || "")), "err");
+  }
+});
+
+/* ------- まとめてコピー：AI にそのまま貼れるプレーンテキスト ------- */
+function reportToText(d) {
+  const when = d.report_time ? d.report_time.replace("T", " ") : "";
+  const lines = [
+    `[${when}] ${d.status || "未対応"} / ${d.category || d.target_type || ""}${d.quick_trouble_preset && d.quick_trouble_preset !== FREE_INPUT ? " / " + d.quick_trouble_preset : ""}`,
+    [d.store_name, d.reporter].filter(Boolean).join(" / "),
+    (d.comment || "").trim(),
+  ];
+  if (d.photo_data) lines.push("(写真あり)");
+  return lines.filter(Boolean).join("\n");
+}
+
+$("btn-copy-all").addEventListener("click", async () => {
+  const list = visibleDocs();
+  if (!list.length) { toast(t("copy_none"), "info"); return; }
+  const text = list.map(reportToText).join("\n\n----\n\n");
+  try {
+    await navigator.clipboard.writeText(text);
+    toast(t("copied"));
+  } catch {
+    // クリップボードが使えない環境向けの逃げ道
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand && document.execCommand("copy");
+    ta.remove();
+    toast(ok ? t("copied") : t("copy_failed"), ok ? "ok" : "err");
   }
 });
 
@@ -1043,10 +1490,10 @@ function startHistory() {
       historyDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       renderHistory();
     },
-    (err)  => {
+    (err) => {
       console.error(err);
       $("history-list").innerHTML =
-        `<p class="text-xs text-rose-400 py-8 text-center">履歴を取得できませんでした（${escapeHTML(err.code || err.message)}）</p>`;
+        `<p class="text-xs text-rose-400 py-8 text-center">${escapeHTML(t("history_failed"))}（${escapeHTML(err.code || err.message)}）</p>`;
     }
   );
 }
@@ -1056,17 +1503,26 @@ function stopHistory() {
 }
 
 /* ====================== 送信 ====================== */
+// 通知の本文。メール・LINE・Webhook で共通に使う。
+function notifyText(record) {
+  const L = (k) => t(k);
+  const rows = [
+    `${L("l_store")}: ${record.store_name || "-"}`,
+    `${L("l_reporter")}: ${record.reporter}`,
+    `${L("l_target")}: ${categoryName(record.category) || record.target_type}`,
+  ];
+  const sym = symptomName(record.category, record.quick_trouble_preset);
+  if (sym) rows.push(`${L("l_symptom")}: ${sym}`);
+  rows.push(`${L("l_when")}: ${record.report_time.replace("T", " ")}`);
+  rows.push("");
+  rows.push(record.comment);
+  if (record.photo_data) rows.push("", `(${L("photo_yes")})`);
+  return rows.join("\n");
+}
+
 async function notifyWebhook(url, record) {
   if (!url) return;
-  const text =
-    `【${record.urgency}】${record.category}` +
-    (record.store_name ? `（${record.store_name}）` : "") + "\n" +
-    `対象: ${record.target_type}\n` +
-    `症状: ${record.quick_trouble_preset}\n` +
-    `報告者: ${record.reporter}\n` +
-    `発生: ${record.report_time.replace("T", " ")}\n` +
-    `内容: ${record.comment}` +
-    (record.photo_data ? "\n（写真あり）" : "");
+  const text = notifyText(record);
   const { photo_data, ...withoutPhoto } = record;   // 画像本体は通知に載せない
   try {
     await fetch(url, {
@@ -1083,6 +1539,36 @@ async function notifyWebhook(url, record) {
   }
 }
 
+// 送信後に出す案内。サーバーがないので自動送信はできず、
+// 宛先が登録してあれば「開くだけ」の導線を出す。
+function openNotifyModal(record) {
+  const mail = lsGet(LS_MAIL, "");
+  const line = Boolean(lsGet(LS_LINE, false));
+  if (!mail && !line) return false;
+
+  const body    = notifyText(record);
+  const subject = t("subject") + (categoryName(record.category) || record.target_type);
+
+  const mailBtn = $("btn-notify-mail");
+  if (mail) {
+    mailBtn.href = `mailto:${encodeURIComponent(mail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    show(mailBtn);
+  } else { hide(mailBtn); }
+
+  const lineBtn = $("btn-notify-line");
+  if (line) {
+    lineBtn.href = `https://line.me/R/msg/text/?${encodeURIComponent(subject + "\n" + body)}`;
+    show(lineBtn);
+  } else { hide(lineBtn); }
+
+  show($("notify-modal"));
+  return true;
+}
+$("btn-notify-close").addEventListener("click", () => hide($("notify-modal")));
+$("notify-modal").addEventListener("click", (e) => {
+  if (e.target === $("notify-modal")) hide($("notify-modal"));
+});
+
 let submitting = false;
 
 $("btn-submit").addEventListener("click", async () => {
@@ -1092,26 +1578,23 @@ $("btn-submit").addEventListener("click", async () => {
   const reportTime = $("report_time").value;
   const reporter   = $("reporter").value.trim();
 
-  if (!form.target_type) { toast("対象区分を選んでください", "err"); goStep(0); return; }
-  if (!form.category)    { toast("カテゴリを選んでください", "err"); goStep(1); return; }
-  if (!form.urgency)     { toast("緊急度を選んでください", "err"); return; }
-  if (!comment)          { toast("トラブル詳細を入力してください", "err"); $("comment").focus(); return; }
-  if (!reporter)         { toast("報告者を入力してください", "err"); $("reporter").focus(); return; }
-  if (!reportTime)       { toast("発生・報告日時を入力してください", "err"); $("report_time").focus(); return; }
-  if (!db || !auth.currentUser) { toast("ログイン状態を確認できません", "err"); return; }
+  if (!form.target_type) { toast(t("need_target"), "err"); goPos(0); return; }
+  if (!comment)          { toast(t("need_detail"), "err"); $("comment").focus(); return; }
+  if (!reporter)         { toast(t("need_reporter"), "err"); $("reporter").focus(); return; }
+  if (!reportTime)       { toast(t("need_time"), "err"); $("report_time").focus(); return; }
+  if (!db || !auth.currentUser) { toast(t("need_login"), "err"); return; }
 
   submitting = true;
   const button = $("btn-submit");
   button.disabled = true;
-  $("submit-label").textContent = "送信中…";
+  $("submit-label").textContent = t("submitting");
 
   const webhook = lsGet(LS_WEBHOOK, "");
-
   const record = {
     target_type:          form.target_type,
-    category:             form.category,
-    quick_trouble_preset: form.quick_trouble_preset || "直接入力",
-    urgency:              form.urgency,
+    // 設備はカテゴリを選ばせないので、対象区分をそのままカテゴリとして持つ
+    category:             form.target_type === TARGET_EQUIPMENT ? TARGET_EQUIPMENT : form.category,
+    quick_trouble_preset: form.symptom || "",
     reporter,
     store_name:           lsGet(LS_STORE, ""),
     photo_data:           form.photos.length ? form.photos[0].dataUrl : "",
@@ -1121,7 +1604,6 @@ $("btn-submit").addEventListener("click", async () => {
   };
 
   try {
-
     await addDoc(collection(db, COLLECTION), {
       ...record,
       status:       "未対応",
@@ -1131,58 +1613,67 @@ $("btn-submit").addEventListener("click", async () => {
 
     rememberReporter(reporter);
     notifyWebhook(webhook, record);
+    const opened = openNotifyModal(record);
     resetForm();
-    toast("送信完了: 報告を記録しました");
     setView("history");
+    if (!opened) toast(t("sent"));
   } catch (err) {
     console.error(err);
-    const reason = err.code === "permission-denied"
-      ? "保存権限がありません（Firestore ルールを確認してください）"
-      : (err.message || "不明なエラー");
-    toast("送信できませんでした: " + reason, "err");
+    const reason = err.code === "permission-denied" ? t("no_permission") : (err.message || "");
+    toast(t("send_failed") + reason, "err");
   } finally {
     submitting = false;
     button.disabled = false;
-    $("submit-label").textContent = "この内容で報告する";
+    $("submit-label").textContent = t("submit");
   }
 });
 
 function resetForm() {
   form.target_type = "";
   form.category = "";
-  form.quick_trouble_preset = "";
-  form.urgency = DEFAULT_URGENCY;
+  form.symptom = "";
+  flow = FLOW_APP;
   clearPhotos();
   $("comment").value = "";
-  $("report_time").value = nowLocalValue();   // 初期値は常に現在時刻
+  $("report_time").value = nowLocalValue();     // 初期値は常に現在時刻
   $("reporter").value = lsGet(LS_REPORTER, ""); // 同じ人が続けて報告することが多いので残す
-  renderUrgency();
   renderReporterChips();
-  renderTargets();
-  goStep(0);
+  goPos(0);
+}
+
+/* ====================== 言語を変えたときの描き直し ====================== */
+function redrawAll() {
+  renderFixedChips();
+  renderSavedChips();
+  renderReporterChips();
+  renderPhotos();
+  buildFilters();
+  renderStepBar();
+  renderCrumbs();
+  if (flow[pos] === 0) renderTargets();
+  if (flow[pos] === 1) renderCategories();
+  if (flow[pos] === 2) renderSymptoms();
+  renderHistory();
+  $("submit-label").textContent = t("submit");
 }
 
 /* ====================== 起動 ====================== */
-renderFixedChips();
-renderSavedChips();
-renderUrgency();
-renderPhotos();
-renderTargets();
-renderStepBar();
-buildFilters();
+applyLanguage(pickLanguage());
+$("report_time").value = nowLocalValue();
 $("reporter").value = lsGet(LS_REPORTER, "");
 renderReporterChips();
-$("report_time").value = nowLocalValue();
+goPos(0);
 setView("report");
 
 if (SDK_ERROR) {
   $("auth-msg").innerHTML =
-    '通信に失敗しました。接続を確認してください' +
-    '<button type="button" id="btn-reload" class="block mx-auto mt-3 px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 font-bold">再読み込み</button>';
+    escapeHTML(t("err_offline")) +
+    '<button type="button" id="btn-reload" class="block mx-auto mt-3 px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 font-bold"></button>';
+  $("btn-reload").textContent = t("reload");
   $("btn-reload").addEventListener("click", () => location.reload());
 } else if (!CONFIGURED) {
   show($("setup-warning"));
-  $("auth-msg").textContent = "Firebase が未設定のため利用できません";
+  $("auth-msg").textContent = t("not_configured");
 } else {
   onAuthStateChanged(auth, (user) => {
     if (user) {
