@@ -18,18 +18,50 @@
 | `manifest.json` | PWA マニフェスト |
 | `icon-192.png` / `icon-512.png` | PWA アイコン（`any` / `maskable` 兼用） |
 | `apple-touch-icon.png` | iOS ホーム画面用アイコン |
+| `firebase.json` / `firestore.rules` / `storage.rules` | セキュリティルール。`firebase deploy` で適用します |
+| `tools/setup.ps1` | Windows 向けの一括セットアップスクリプト |
 | `favicon-32.png` | ブラウザタブ用アイコン |
 
 ## セットアップ
 
-### 1. Firebase プロジェクトを用意する
+### かんたんセットアップ（Windows / PowerShell）
+
+`tools/setup.ps1` が下の手順をまとめて実行します。
+
+```powershell
+cd path\to\store-trouble-report
+powershell -ExecutionPolicy Bypass -File tools\setup.ps1
+```
+
+やってくれること:
+
+1. Node.js / Git / Firebase CLI の確認と、足りなければインストール
+2. Firebase へのログイン
+3. プロジェクトの選択（または新規作成）
+4. ウェブアプリの登録と設定値の取得
+5. `index.html` への設定値の書き込み
+6. Firestore と Storage のセキュリティルールの適用
+7. 店舗共通アカウントの作成（PIN はその場で入力します）
+8. コミットして push（`main` なら GitHub Pages へ自動デプロイ）
+
+何度実行しても問題ありません。済んでいる手順は飛ばします。
+コンソールでの操作が必要になった場合は、その場所の URL を出して止まります。
+
+**PIN はスクリプトにもリポジトリにも保存されません。** 入力された PIN から
+組み立てたパスワードを Firebase に送るだけです。
+
+以下は、スクリプトが何をしているかの説明と、手作業で行う場合の手順です。
+
+### 手作業で行う場合
+
+#### 1. Firebase プロジェクトを用意する
 
 1. [Firebase コンソール](https://console.firebase.google.com/) でプロジェクトを作成します。
 2. **Authentication** を開き、ログイン方法で「メール / パスワード」を有効にします。
 3. **Firestore Database** を作成します（本番モードで構いません。ルールは後述）。
 4. **Storage** を作成します（写真の保存先。ルールは後述）。
 
-### 2. 店舗共通アカウントを作る
+#### 2. 店舗共通アカウントを作る
 
 Authentication の「ユーザーを追加」から、店舗共通アカウントを1件作成します。
 
@@ -43,7 +75,7 @@ PIN が `8902` なら、パスワードは `store-pin-8902` です。
 > **PIN 自体はコードのどこにも書きません。** 画面で入力された PIN から組み立てたパスワードを
 > Firebase に送り、合っているかどうかの判定は Firebase のサーバー側だけで行われます。
 
-### 3. `index.html` に設定値を入れる
+#### 3. `index.html` に設定値を入れる
 
 `index.html` の `<script type="module">` 冒頭にある設定ブロックを埋めます。
 
@@ -74,7 +106,7 @@ const STORE_ACCOUNT_EMAIL = "store@example.com";
 | `PHOTO_MAX_BYTES` | `1200000` | 圧縮後の1枚あたりの上限 |
 | `STORAGE_PREFIX` | `trouble_reports` | Cloud Storage 上の保存先フォルダ |
 
-### 4. Firestore セキュリティルール
+#### 4. Firestore セキュリティルール
 
 ログイン済みの端末だけが読み書きできるようにします。
 
@@ -104,7 +136,7 @@ service cloud.firestore {
 }
 ```
 
-### 5. Storage セキュリティルール
+#### 5. Storage セキュリティルール
 
 写真の保存先です。Firebase コンソールの Storage → Rules に設定します。
 
