@@ -11,8 +11,7 @@ service cloud.firestore {
                     && request.resource.data.comment.size() > 0
                     && request.resource.data.comment.size() < 2000
                     && request.resource.data.reporter is string
-                    && request.resource.data.reporter.size() > 0
-                    && request.resource.data.urgency in ['至急', '要対応', '通常'];
+                    && request.resource.data.reporter.size() > 0;
 
       // 履歴からのステータス変更だけを許可する。報告の本文は書き換えさせない。
       allow update: if request.auth != null

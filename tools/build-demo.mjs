@@ -44,15 +44,19 @@ swap(
   "<title>【デモ】現場トラブル・不具合クイック報告</title>",
   "title",
 );
+// 案内文は i18n の辞書から出るので、マークアップではなく辞書側を差し替える
+swap('login_lead: "店舗コードを入力してください",',
+     'login_lead: "デモ版です。数字を3〜8桁入れれば誰でも入れます。内容はどこにも保存されません",',
+     "auth hint ja");
+swap('login_lead: "Enter your store code",',
+     'login_lead: "Demo. Any 3-8 digits will let you in. Nothing is saved anywhere.",',
+     "auth hint en");
+swap('login_lead: "पसल कोड हाल्नुहोस्",',
+     'login_lead: "डेमो। ३-८ अंक हाले पुग्छ। केही पनि सुरक्षित हुँदैन।",',
+     "auth hint ne");
 swap(
-  '<p class="mt-2 text-xs text-slate-400">店舗コードを入力してください</p>',
-  '<p class="mt-2 text-xs text-amber-300">デモ版です。数字を3〜8桁入れれば誰でも入れます</p>' +
-  '<p class="mt-1 text-[10px] text-slate-500">入力した内容はブラウザを閉じると消え、どこにも保存されません</p>',
-  "auth hint",
-);
-swap(
-  '<h1 class="flex-1 font-bold text-[15px] text-white leading-tight">現場トラブル・不具合報告</h1>',
-  '<h1 class="flex-1 font-bold text-[15px] text-white leading-tight">現場トラブル・不具合報告</h1>' +
+  '<h1 class="flex-1 font-bold text-[15px] text-white leading-tight" data-i18n="app_title">現場トラブル・不具合報告</h1>',
+  '<h1 class="flex-1 font-bold text-[15px] text-white leading-tight" data-i18n="app_title">現場トラブル・不具合報告</h1>' +
   '<span class="text-[10px] font-bold bg-black/35 text-white px-2 py-0.5 rounded-full tracking-wide">DEMO</span>',
   "header badge",
 );
