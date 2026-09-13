@@ -48,7 +48,11 @@ param(
   [switch]$SkipPush
 )
 
-$ErrorActionPreference = "Stop"
+# native コマンド（firebase / git / npm）は進捗表示を stderr に出す。
+# $ErrorActionPreference = "Stop" のままそれをリダイレクトすると、PowerShell は
+# その出力を NativeCommandError という致命的エラーに変えてしまう。
+# ここでは各コマンドの終了コードを自分で見ているので Continue にしておく。
+$ErrorActionPreference = "Continue"
 try { [Console]::OutputEncoding = [Text.Encoding]::UTF8 } catch { }
 # PowerShell 5.1 の既定は TLS 1.0 のことがあり、そのままでは Google の API に繋がらない
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch { }
@@ -81,8 +85,7 @@ function Stop-WithGuide {
 # ------------------------------------------------------------ ヘルパー --
 function Test-Command {
   param([string]$Name)
-  $null = Get-Command $Name -ErrorAction SilentlyContinue
-  return $?
+  return [bool](Get-Command $Name -ErrorAction SilentlyContinue)
 }
 
 function Sync-Path {
@@ -96,8 +99,12 @@ function Invoke-FirebaseJson {
   param([string[]]$FbArgs)
   $raw = & firebase @FbArgs --json 2>$null
   if ($LASTEXITCODE -ne 0) { return $null }
-  if (-not $raw) { return $null }
-  try { return (($raw -join "`n") | ConvertFrom-Json) } catch { return $null }
+  $text = ($raw | Out-String).Trim()
+  if (-not $text) { return $null }
+  # CLI が JSON の前に案内文を出すことがあるので、最初の { から読む
+  $at = $text.IndexOf("{")
+  if ($at -lt 0) { return $null }
+  try { return ($text.Substring($at) | ConvertFrom-Json -ErrorAction Stop) } catch { return $null }
 }
 
 function Get-IdentityToolkitError {
@@ -176,8 +183,8 @@ Write-Ok ("Firebase CLI {0}" -f ((firebase --version) | Select-Object -First 1))
 
 # =========================================================== 2. ログイン --
 Write-Step "Firebase にログインします"
-$who = & firebase login:list 2>&1 | Out-String
-if ($who -match "No authorized accounts|ログインしていません") {
+$who = (& firebase login:list 2>$null | Out-String)
+if (-not $who -or $who -match "No authorized accounts|ログインしていません") {
   Write-Info "ブラウザが開きます。Google アカウントで許可してください。"
   firebase login
   if ($LASTEXITCODE -ne 0) { Write-Fail "ログインに失敗しました。"; exit 1 }
@@ -227,26 +234,37 @@ Write-Info ".firebaserc を書きました"
 
 # ========================================================= 4. ウェブアプリ --
 Write-Step "ウェブアプリを登録して設定値を取り出します"
-$apps = Invoke-FirebaseJson @("apps:list", "WEB", "--project", $ProjectId)
-$webApps = @()
-if ($apps -and $apps.result) { $webApps = @($apps.result | Where-Object { $_.platform -eq "WEB" }) }
+function Get-WebApps {
+  param([string]$Project)
+  $res = Invoke-FirebaseJson @("apps:list", "WEB", "--project", $Project)
+  if (-not $res -or -not $res.result) { return @() }
+  # 古い CLI は platform を返さないことがあるので、あるときだけ絞る
+  return @($res.result | Where-Object { -not $_.platform -or $_.platform -eq "WEB" })
+}
 
+$webApps = Get-WebApps $ProjectId
 if ($webApps.Count -eq 0) {
   Write-Info "ウェブアプリがないので作ります…"
-  firebase apps:create WEB "現場トラブル報告" --project $ProjectId | Out-Null
+  firebase apps:create WEB "現場トラブル報告" --project $ProjectId
   if ($LASTEXITCODE -ne 0) { Write-Fail "ウェブアプリを作成できませんでした。"; exit 1 }
-  $apps = Invoke-FirebaseJson @("apps:list", "WEB", "--project", $ProjectId)
-  $webApps = @($apps.result | Where-Object { $_.platform -eq "WEB" })
+  $webApps = Get-WebApps $ProjectId
 }
+if ($webApps.Count -eq 0) { Write-Fail "ウェブアプリを取得できませんでした。"; exit 1 }
 $appId = $webApps[0].appId
 Write-Ok "ウェブアプリ: $appId"
 
 $sdk = Invoke-FirebaseJson @("apps:sdkconfig", "WEB", $appId, "--project", $ProjectId)
-if (-not $sdk -or -not $sdk.result -or -not $sdk.result.sdkConfig) {
+$cfg = $null
+if ($sdk -and $sdk.result) {
+  if ($sdk.result.sdkConfig) { $cfg = $sdk.result.sdkConfig }   # 新しい CLI
+  elseif ($sdk.result.apiKey) { $cfg = $sdk.result }            # 古い CLI
+}
+if (-not $cfg -or -not $cfg.apiKey) {
   Write-Fail "設定値を取得できませんでした。"
+  Write-Info "次を手で実行して、出てきた値を index.html に貼ってください:"
+  Write-Info "    firebase apps:sdkconfig WEB $appId --project $ProjectId"
   exit 1
 }
-$cfg = $sdk.result.sdkConfig
 Write-Ok "設定値を取得しました（projectId: $($cfg.projectId)）"
 
 # ============================================== 5. index.html に書き込む --
@@ -350,14 +368,14 @@ $signInUri = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassw
 $payload = @{ email = $StoreEmail; password = $password; returnSecureToken = $true } | ConvertTo-Json -Compress
 
 try {
-  Invoke-RestMethod -Method Post -Uri $signUpUri -ContentType "application/json; charset=utf-8" -Body $payload | Out-Null
+  Invoke-RestMethod -Method Post -Uri $signUpUri -ContentType "application/json; charset=utf-8" -Body $payload -ErrorAction Stop | Out-Null
   Write-Ok "店舗共通アカウントを作成しました: $StoreEmail"
 } catch {
   $code = Get-IdentityToolkitError $_
   if ($code -like "EMAIL_EXISTS*") {
     Write-Info "アカウントは既にあります。入力された PIN で入れるか確認します…"
     try {
-      Invoke-RestMethod -Method Post -Uri $signInUri -ContentType "application/json; charset=utf-8" -Body $payload | Out-Null
+      Invoke-RestMethod -Method Post -Uri $signInUri -ContentType "application/json; charset=utf-8" -Body $payload -ErrorAction Stop | Out-Null
       Write-Ok "既存のアカウントに、この PIN で入れることを確認しました"
     } catch {
       $password = $null
