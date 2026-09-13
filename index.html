@@ -20,6 +20,8 @@
   body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
   .is-hidden { display: none !important; }
   .safe-b { padding-bottom: calc(0.5rem + env(safe-area-inset-bottom)); }
+  /* 下部タブの少し上に出す。上に出すと、読みたい見出しや絞り込みを覆ってしまう。 */
+  .toast-pos { bottom: calc(5.5rem + env(safe-area-inset-bottom)); }
   .safe-t { padding-top: calc(0.75rem + env(safe-area-inset-top)); }
   /* large, thumb-friendly tiles */
   .tile {
@@ -28,13 +30,20 @@
   }
   .tile:active { transform: scale(.97); }
   .tile-on { border-color: #f97316; background-color: rgba(249,115,22,.16); }
+  /* STEP1 は選択肢が2つだけなので、タイルを大きくして押しやすくする */
+  #grid-target .tile { min-height: 132px; }
   .key:active { transform: scale(.94); }
   .key { transition: transform .1s ease, background-color .1s ease; }
   .fade-in { animation: fade .22s ease both; }
   @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
   .shake { animation: shake .38s ease; }
   @keyframes shake { 10%,90%{transform:translateX(-3px)} 30%,70%{transform:translateX(5px)} 50%{transform:translateX(-5px)} }
-  textarea, input, select { font-size: 16px; } /* stop iOS zoom-on-focus */
+  /* iOS は 16px 未満の入力欄にフォーカスすると自動で拡大し、そのまま戻らない。
+     画面が横にずれてしまうので、入力欄のサイズが 16px を下回らないようにする。
+     Tailwind の text-sm / text-xs はクラスなので、element セレクタでは負ける。
+     input[class] なら詳細度で上回るため、確実に下限として効く。 */
+  input[class], select[class], textarea[class] { font-size: 1rem; }
+  #login-code { font-size: 1.25rem; }   /* 店舗コードだけは大きく */
   ::-webkit-scrollbar { width: 0; height: 0; }
 </style>
 </head>
@@ -168,7 +177,7 @@
             <i class="fa-solid fa-pen-to-square text-orange-400"></i>トラブル詳細<span class="text-[10px] font-bold text-orange-400">必須</span>
           </label>
           <textarea id="comment" name="comment" rows="4" placeholder="具体的な状況を記入してください"
-            class="mt-2.5 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm leading-relaxed placeholder:text-slate-600 focus:border-orange-500 focus:outline-none"></textarea>
+            class="mt-2.5 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-base leading-relaxed placeholder:text-slate-600 focus:border-orange-500 focus:outline-none"></textarea>
 
           <p class="mt-3 text-[11px] font-bold text-slate-400">状況を追加</p>
           <div id="chips-fixed" class="mt-1.5 flex flex-wrap gap-1.5"></div>
@@ -190,7 +199,7 @@
           <div id="chips-reporter" class="mt-2.5 flex flex-wrap gap-1.5"></div>
           <input type="text" id="reporter" name="reporter" maxlength="24" autocomplete="off"
             placeholder="名前を入力（次回からボタンで選べます）"
-            class="mt-2 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm placeholder:text-slate-600 focus:border-orange-500 focus:outline-none">
+            class="mt-2 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-base placeholder:text-slate-600 focus:border-orange-500 focus:outline-none">
         </div>
 
         <!-- 発生日時 -->
@@ -199,7 +208,7 @@
             <i class="fa-solid fa-clock text-orange-400"></i>発生・報告日時<span class="text-[10px] font-bold text-orange-400">必須</span>
           </label>
           <input type="datetime-local" id="report_time" name="report_time"
-            class="mt-2.5 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm focus:border-orange-500 focus:outline-none">
+            class="mt-2.5 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-base focus:border-orange-500 focus:outline-none">
           <button type="button" id="btn-now" class="mt-2 text-[11px] font-bold text-orange-400 active:text-orange-300">
             <i class="fa-solid fa-rotate-right mr-1"></i>現在時刻にする
           </button>
@@ -232,9 +241,9 @@
         <div id="filter-status" class="flex gap-1.5"></div>
         <div class="grid grid-cols-2 gap-2">
           <select id="filter-category" aria-label="カテゴリで絞り込む"
-            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-xs focus:border-orange-500 focus:outline-none"></select>
+            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2.5 text-base focus:border-orange-500 focus:outline-none"></select>
           <select id="filter-urgency" aria-label="緊急度で絞り込む"
-            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-xs focus:border-orange-500 focus:outline-none"></select>
+            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2.5 text-base focus:border-orange-500 focus:outline-none"></select>
         </div>
       </div>
       <div id="history-list" class="space-y-3"></div>
@@ -270,12 +279,12 @@
     <label for="store_name" class="text-xs font-bold text-slate-300">店舗名</label>
     <p class="text-[10px] text-slate-500 mt-1 leading-relaxed">報告と一緒に記録されます。複数店舗で使うときに、どの店からの報告か分かるようになります。</p>
     <input type="text" id="store_name" maxlength="40" autocomplete="off" placeholder="例: 〇〇店"
-      class="mt-2 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm placeholder:text-slate-600 focus:border-orange-500 focus:outline-none">
+      class="mt-2 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-base placeholder:text-slate-600 focus:border-orange-500 focus:outline-none">
 
     <label for="webhook_endpoint" class="mt-5 block text-xs font-bold text-slate-300">通知先 Webhook URL</label>
     <p class="text-[10px] text-slate-500 mt-1 leading-relaxed">Discord / Slack / GAS などの通知先。この端末に保存され、報告と一緒に送信されます。</p>
     <input type="url" id="webhook_endpoint" name="webhook_endpoint" inputmode="url" placeholder="https://..."
-      class="mt-2 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm placeholder:text-slate-600 focus:border-orange-500 focus:outline-none">
+      class="mt-2 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-base placeholder:text-slate-600 focus:border-orange-500 focus:outline-none">
 
     <button type="button" id="btn-settings-save" class="mt-4 w-full py-3.5 bg-orange-600 active:bg-orange-700 text-white font-bold rounded-xl text-sm">
       保存する
@@ -291,7 +300,7 @@
 </div>
 
 <!-- ============================= トースト ============================= -->
-<div id="toast" class="is-hidden fixed left-1/2 -translate-x-1/2 top-20 z-50 w-[calc(100%-2rem)] max-w-md">
+<div id="toast" class="is-hidden toast-pos fixed left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-md">
   <div id="toast-box" class="rounded-2xl px-4 py-3 text-sm font-bold shadow-2xl flex items-start gap-2.5">
     <i id="toast-icon" class="mt-0.5"></i><span id="toast-text" class="flex-1"></span>
   </div>
