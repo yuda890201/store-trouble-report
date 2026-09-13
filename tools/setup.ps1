@@ -95,6 +95,28 @@ function Sync-Path {
   $env:Path = @($machine, $user, "$env:APPDATA\npm") -join ";"
 }
 
+function Show-FirebaseDebugLog {
+  # firebase-debug.log はカレントディレクトリに書かれる
+  $candidates = @((Join-Path (Get-Location) "firebase-debug.log"),
+                  (Join-Path $RepoRoot "firebase-debug.log"))
+  $log = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+  if (-not $log) { return }
+  $tail = Get-Content $log -Tail 60
+  $messages = @()
+  foreach ($line in $tail) {
+    foreach ($m in [Regex]::Matches($line, '"message"\s*:\s*"((?:[^"\\]|\\.)*)"')) {
+      $messages += $m.Groups[1].Value
+    }
+  }
+  if ($messages.Count -gt 0) {
+    Write-Host "    Firebase からのエラー内容:" -ForegroundColor Yellow
+    foreach ($msg in ($messages | Select-Object -Unique)) {
+      Write-Host ("      " + $msg) -ForegroundColor Yellow
+    }
+  }
+  Write-Host ("    詳しくは " + $log) -ForegroundColor DarkGray
+}
+
 function Invoke-FirebaseJson {
   param([string[]]$FbArgs)
   $raw = & firebase @FbArgs --json 2>$null
@@ -193,6 +215,30 @@ Write-Ok "ログイン済みです"
 
 # ======================================================== 3. プロジェクト --
 Write-Step "Firebase プロジェクトを決めます"
+# Google Cloud のプロジェクト表示名は ASCII しか受け付けない
+# （英数字・ハイフン・スペース・アポストロフィ・感嘆符のみ）。日本語は 400 で弾かれる。
+$DISPLAY_NAME = "Store Trouble Report"
+
+function New-FirebaseProject {
+  param([string]$NewId)
+  if ($NewId -notmatch '^[a-z][a-z0-9-]{4,28}[a-z0-9]$') {
+    Write-Fail "プロジェクトIDの形式が正しくありません: $NewId"
+    Write-Info "英小文字で始まり、英小文字・数字・ハイフンのみ、6〜30文字で、末尾はハイフン以外です。"
+    return $false
+  }
+  firebase projects:create $NewId --display-name $DISPLAY_NAME
+  if ($LASTEXITCODE -ne 0) {
+    Write-Fail "プロジェクトを作成できませんでした。"
+    Show-FirebaseDebugLog
+    Write-Info "ID が他の人に使われている場合は、別の ID でやり直してください。"
+    Write-Info "コンソールから作ることもできます: https://console.firebase.google.com/"
+    return $false
+  }
+  return $true
+}
+
+$usingExisting = [bool]$ProjectId     # -ProjectId で渡された場合も既存とみなす
+
 if (-not $ProjectId) {
   $list = Invoke-FirebaseJson @("projects:list")
   $projects = @()
@@ -203,12 +249,11 @@ if (-not $ProjectId) {
     for ($i = 0; $i -lt $projects.Count; $i++) {
       Write-Host ("      {0}) {1}  ({2})" -f ($i + 1), $projects[$i].projectId, $projects[$i].displayName)
     }
-    Write-Host ("      n) 新しく作る")
+    Write-Host ("      n) 新しく作る（推奨）")
     $pick = Read-Host "    番号を入力してください"
     if ($pick -eq "n") {
-      $newId = Read-Host "    新しいプロジェクトID（半角英数とハイフン、6文字以上）"
-      firebase projects:create $newId --display-name "現場トラブル報告"
-      if ($LASTEXITCODE -ne 0) { Write-Fail "プロジェクトを作成できませんでした。"; exit 1 }
+      $newId = Read-Host "    新しいプロジェクトID（英小文字・数字・ハイフン、6〜30文字）"
+      if (-not (New-FirebaseProject $newId)) { exit 1 }
       $ProjectId = $newId
     } else {
       $idx = 0
@@ -216,12 +261,26 @@ if (-not $ProjectId) {
         Write-Fail "番号が正しくありません。"; exit 1
       }
       $ProjectId = $projects[$idx - 1].projectId
+      $usingExisting = $true
     }
   } else {
-    $newId = Read-Host "    プロジェクトが1つもありません。新しいID（半角英数とハイフン、6文字以上）"
-    firebase projects:create $newId --display-name "現場トラブル報告"
-    if ($LASTEXITCODE -ne 0) { Write-Fail "プロジェクトを作成できませんでした。"; exit 1 }
+    $newId = Read-Host "    プロジェクトが1つもありません。新しいID（英小文字・数字・ハイフン、6〜30文字）"
+    if (-not (New-FirebaseProject $newId)) { exit 1 }
     $ProjectId = $newId
+  }
+}
+
+# 既存プロジェクトに入れると、そこで動いている別アプリを壊しうる
+if ($usingExisting) {
+  Write-Host ""
+  Write-Warn2 "既存のプロジェクト「$ProjectId」を選びました。"
+  Write-Info "このあと Firestore と Storage のルールを、このリポジトリの内容で置き換えます。"
+  Write-Info "trouble_reports 以外へのアクセスを拒否する設定が入っているため、同じプロジェクトで"
+  Write-Info "動いている別のアプリがあると、そのアプリがデータを読み書きできなくなります。"
+  $answer = Read-Host "    それでも続けますか？ 続ける場合は yes と入力してください"
+  if ($answer -ne "yes") {
+    Write-Info "中止しました。新しいプロジェクトを作る場合は、もう一度実行して n を選んでください。"
+    exit 1
   }
 }
 Write-Ok "プロジェクト: $ProjectId"
@@ -245,8 +304,12 @@ function Get-WebApps {
 $webApps = Get-WebApps $ProjectId
 if ($webApps.Count -eq 0) {
   Write-Info "ウェブアプリがないので作ります…"
-  firebase apps:create WEB "現場トラブル報告" --project $ProjectId
-  if ($LASTEXITCODE -ne 0) { Write-Fail "ウェブアプリを作成できませんでした。"; exit 1 }
+  firebase apps:create WEB $DISPLAY_NAME --project $ProjectId
+  if ($LASTEXITCODE -ne 0) {
+    Write-Fail "ウェブアプリを作成できませんでした。"
+    Show-FirebaseDebugLog
+    exit 1
+  }
   $webApps = Get-WebApps $ProjectId
 }
 if ($webApps.Count -eq 0) { Write-Fail "ウェブアプリを取得できませんでした。"; exit 1 }
@@ -323,12 +386,12 @@ Write-Step "Firestore と Storage のルールを適用します"
 $firestoreOk = $false
 firebase deploy --only firestore:rules --project $ProjectId
 if ($LASTEXITCODE -eq 0) { $firestoreOk = $true; Write-Ok "Firestore ルールを適用しました" }
-else { Write-Warn2 "Firestore ルールを適用できませんでした" }
+else { Write-Warn2 "Firestore ルールを適用できませんでした"; Show-FirebaseDebugLog }
 
 $storageOk = $false
 firebase deploy --only storage --project $ProjectId
 if ($LASTEXITCODE -eq 0) { $storageOk = $true; Write-Ok "Storage ルールを適用しました" }
-else { Write-Warn2 "Storage ルールを適用できませんでした" }
+else { Write-Warn2 "Storage ルールを適用できませんでした"; Show-FirebaseDebugLog }
 
 if (-not $firestoreOk -or -not $storageOk) {
   $lines = @()
