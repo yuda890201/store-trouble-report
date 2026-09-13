@@ -45,8 +45,8 @@ swap(
   "title",
 );
 swap(
-  '<p class="mt-2 text-xs text-slate-400">店舗のアカウントでログインしてください</p>',
-  '<p class="mt-2 text-xs text-amber-300">デモ版です。どんなメールアドレスとパスワードでも入れます</p>' +
+  '<p class="mt-2 text-xs text-slate-400">店舗コードを入力してください</p>',
+  '<p class="mt-2 text-xs text-amber-300">デモ版です。数字を3〜8桁入れれば誰でも入れます</p>' +
   '<p class="mt-1 text-[10px] text-slate-500">入力した内容はブラウザを閉じると消え、どこにも保存されません</p>',
   "auth hint",
 );

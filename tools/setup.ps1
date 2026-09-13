@@ -12,17 +12,13 @@
     4. ウェブアプリの登録と設定値の取得
     5. index.html への設定値の書き込み
     6. Firestore の作成とリージョンの確認、ルールの適用
-    7. 店舗のアカウントの作成（メールアドレスとパスワードを入力します）
+    7. 店舗のアカウントの作成（店舗コードを入力します）
     8. コミットして push（GitHub Pages へ自動デプロイ）
 
   何度実行しても問題ありません。すでに済んでいる手順は飛ばします。
 
 .PARAMETER ProjectId
   使用する Firebase プロジェクトの ID。省略すると一覧から選べます。
-
-.PARAMETER StoreEmail
-  店舗のアカウントのメールアドレス。省略すると入力を求めます。
-  実在しないドメインで構いませんが、形式は正しくしてください。
 
 .PARAMETER Location
   Firestore を作成するリージョン。既定は asia-northeast1（東京）です。
@@ -34,16 +30,15 @@
   powershell -ExecutionPolicy Bypass -File tools\setup.ps1
 
 .EXAMPLE
-  powershell -ExecutionPolicy Bypass -File tools\setup.ps1 -ProjectId my-project -StoreEmail store@example.com
+  powershell -ExecutionPolicy Bypass -File tools\setup.ps1 -ProjectId my-project
 
 .NOTES
-  パスワードはこのスクリプトにもリポジトリにも保存されません。
+  店舗コードはこのスクリプトにもリポジトリにも保存されません。
   入力された内容を Firebase に送るだけです。
 #>
 [CmdletBinding()]
 param(
   [string]$ProjectId,
-  [string]$StoreEmail,
   [string]$Location = "asia-northeast1",
   [switch]$SkipPush
 )
@@ -456,55 +451,43 @@ if ($LASTEXITCODE -eq 0) {
 
 # ==================================================== 7. 店舗アカウント --
 Write-Step "店舗のアカウントを用意します"
-Write-Info "店舗ごとに1つ作ります。入力した内容はファイルに保存しません。"
-Write-Info "あとから追加する場合は、Firebase コンソールからでも作れます:"
+Write-Info "店舗コード（fm + 数字）を1つ登録します。店舗の数だけ繰り返し実行してください。"
+Write-Info "コンソールからでも追加できます:"
 Write-Info "  https://console.firebase.google.com/project/$ProjectId/authentication/users"
 
-if (-not $StoreEmail) {
-  $StoreEmail = (Read-Host "    店舗のメールアドレス").Trim()
-}
-if ($StoreEmail -notmatch '^[^@\s]+@[^@\s]+\.[^@\s]+$') {
-  Write-Fail "メールアドレスの形式が正しくありません: $StoreEmail"
+$digits = (Read-Host "    店舗コードの数字（3〜8桁。例 0001）").Trim()
+if ($digits -notmatch '^[0-9]{3,8}$') {
+  Write-Fail "3〜8桁の数字で入力してください: $digits"
   exit 1
 }
 
-$securePw = Read-Host "    パスワード（6文字以上）" -AsSecureString
-$bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePw)
-try   { $password = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr) }
-finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
+# アプリと同じ組み立て方。画面では fm+数字 だけを入力させる。
+$storeCode  = "fm$digits"
+$loginEmail = "$storeCode@fm.example.com"
 
-if ($password.Length -lt 6) {
-  Write-Fail "パスワードは6文字以上にしてください（Firebase の要件です）。"
-  exit 1
-}
+Write-Info "登録する内容: $loginEmail（パスワードは店舗コードと同じ）"
 
 $signUpUri = "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=$($cfg.apiKey)"
 $signInUri = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=$($cfg.apiKey)"
-$payload = @{ email = $StoreEmail; password = $password; returnSecureToken = $true } | ConvertTo-Json -Compress
+$payload = @{ email = $loginEmail; password = $storeCode; returnSecureToken = $true } | ConvertTo-Json -Compress
 
 try {
   Invoke-RestMethod -Method Post -Uri $signUpUri -ContentType "application/json; charset=utf-8" -Body $payload -ErrorAction Stop | Out-Null
-  Write-Ok "アカウントを作成しました: $StoreEmail"
+  Write-Ok "店舗コード $storeCode を登録しました"
 } catch {
-  $code = Get-IdentityToolkitError $_
-  if ($code -like "EMAIL_EXISTS*") {
-    Write-Info "このアドレスのアカウントは既にあります。入力したパスワードで入れるか確認します…"
+  $reason = Get-IdentityToolkitError $_
+  if ($reason -like "EMAIL_EXISTS*") {
     try {
       Invoke-RestMethod -Method Post -Uri $signInUri -ContentType "application/json; charset=utf-8" -Body $payload -ErrorAction Stop | Out-Null
-      Write-Ok "既存のアカウントに、このパスワードで入れることを確認しました"
+      Write-Ok "店舗コード $storeCode は既に登録済みです"
     } catch {
-      $password = $null
-      Stop-WithGuide "既にあるアカウントのパスワードが、入力したものと違います。" @(
-        "次のどちらかで直してください。",
+      Stop-WithGuide "同じアドレスのアカウントがありますが、パスワードが一致しません。" @(
+        "コンソールで $loginEmail のパスワードを $storeCode に変更してください。",
         "",
-        "  A) 前のパスワードを使う … 実行し直して、前のパスワードを入力する",
-        "  B) パスワードを変える   … コンソールで $StoreEmail のパスワードを変更してから実行し直す",
-        "",
-        "     https://console.firebase.google.com/project/$ProjectId/authentication/users"
+        "    https://console.firebase.google.com/project/$ProjectId/authentication/users"
       )
     }
-  } elseif ($code -like "OPERATION_NOT_ALLOWED*" -or $code -like "*ADMIN_ONLY_OPERATION*") {
-    $password = $null
+  } elseif ($reason -like "OPERATION_NOT_ALLOWED*" -or $reason -like "*ADMIN_ONLY_OPERATION*") {
     Stop-WithGuide "メール／パスワードのログイン方法が有効になっていません。" @(
       "次のページで有効にしてください。",
       "",
@@ -513,17 +496,11 @@ try {
       "  「メール / パスワード」を選び、上のトグルを有効にして保存してください。",
       "  （下の「メールリンク」は無効のままで構いません）"
     )
-  } elseif ($code -like "WEAK_PASSWORD*") {
-    $password = $null
-    Write-Fail "パスワードが短すぎます。6文字以上にしてください。"
-    exit 1
   } else {
-    $password = $null
-    Write-Fail "アカウントを作成できませんでした: $code"
+    Write-Fail "登録できませんでした: $reason"
     exit 1
   }
 }
-$password = $null
 
 # ================================================== 8. コミットして push --
 if ($SkipPush) {
@@ -567,6 +544,6 @@ Write-Host " アプリ    : https://yuda890201.github.io/store-trouble-report/"
 Write-Host " デモ版    : https://yuda890201.github.io/store-trouble-report/demo.html"
 Write-Host " コンソール: https://console.firebase.google.com/project/$ProjectId/overview"
 Write-Host ""
-Write-Host " ログインは、登録したメールアドレスとパスワードで行います。" -ForegroundColor Gray
-Write-Host " パスワードはこのリポジトリにもスクリプトにも保存されていません。" -ForegroundColor Gray
+Write-Host " ログインは、登録した店舗コード（fm + 数字）で行います。" -ForegroundColor Gray
+Write-Host " 店舗コードはこのリポジトリにもスクリプトにも保存されていません。" -ForegroundColor Gray
 Write-Host ""
