@@ -47,18 +47,36 @@
       <i class="fa-solid fa-triangle-exclamation text-4xl text-white"></i>
     </div>
     <h1 class="mt-5 text-lg font-bold tracking-tight">現場トラブル・不具合<br>クイック報告</h1>
-    <p class="mt-2 text-xs text-slate-400">店舗共通PINを入力してください</p>
+    <p class="mt-2 text-xs text-slate-400">店舗のアカウントでログインしてください</p>
 
-    <div id="pin-dots" class="mt-7 flex justify-center gap-3.5"></div>
-    <p id="auth-msg" class="mt-4 text-xs text-rose-400 min-h-[1rem]"></p>
-
-    <div id="keypad" class="mt-3 grid grid-cols-3 gap-3"></div>
+    <form id="login-form" class="mt-6 space-y-3 text-left">
+      <div>
+        <label for="login-email" class="text-[11px] font-bold text-slate-400">メールアドレス</label>
+        <input type="email" id="login-email" name="email" autocomplete="username"
+          inputmode="email" autocapitalize="none" spellcheck="false" required
+          placeholder="store@example.com"
+          class="mt-1 w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm placeholder:text-slate-600 focus:border-orange-500 focus:outline-none">
+      </div>
+      <div>
+        <label for="login-password" class="text-[11px] font-bold text-slate-400">パスワード</label>
+        <input type="password" id="login-password" name="password" autocomplete="current-password" required
+          class="mt-1 w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-sm focus:border-orange-500 focus:outline-none">
+      </div>
+      <button type="submit" id="btn-login"
+        class="w-full py-3.5 bg-orange-600 active:bg-orange-700 disabled:opacity-50 text-white font-bold rounded-xl text-sm">
+        ログイン
+      </button>
+    </form>
+    <p id="auth-msg" class="mt-3 text-xs text-rose-400 min-h-[1rem] text-center"></p>
+    <p class="mt-4 text-[10px] text-slate-600 leading-relaxed">
+      一度ログインすると、次回からは自動で入れます
+    </p>
   </div>
   <div id="setup-warning" class="is-hidden fixed inset-x-0 bottom-0 safe-b px-5 pt-4 bg-amber-500/15 border-t border-amber-500/40">
     <p class="text-[11px] leading-relaxed text-amber-200 max-w-md mx-auto">
       <i class="fa-solid fa-circle-exclamation mr-1"></i>
       <strong>未設定です。</strong> <code class="font-mono">index.html</code> 冒頭の <code class="font-mono">FIREBASE_CONFIG</code> と
-      <code class="font-mono">STORE_ACCOUNT_EMAIL</code> を入力すると認証・保存が有効になります。
+を入力すると認証・保存が有効になります。
     </p>
   </div>
 </div>
@@ -290,23 +308,17 @@
    ====================================================================== */
 /* === FIREBASE_CONFIG_START === */
 const FIREBASE_CONFIG = {
-  apiKey:            "",
-  authDomain:        "",
-  projectId:         "",
-  storageBucket:     "",
-  messagingSenderId: "",
-  appId:             ""
+  apiKey:            "AIzaSyABQGxUHJC_WXZccf4L0zkMiGuhx2iANBQ",
+  authDomain:        "store-trouble-report.firebaseapp.com",
+  projectId:         "store-trouble-report",
+  storageBucket:     "store-trouble-report.firebasestorage.app",
+  messagingSenderId: "829035554035",
+  appId:             "1:829035554035:web:a8955cb79ee6a8428d4386"
 };
-
-// 店舗共通アカウントのメールアドレス（Firebase Authentication に作成したもの）
-const STORE_ACCOUNT_EMAIL = "";
 /* === FIREBASE_CONFIG_END === */
 
-// PIN は「コードに書かない」。入力された PIN からこの接頭辞でパスワードを組み立て、
-// 照合は Firebase Authentication のサーバー側で行う。
-// 例: PIN が 8902 なら、Firebase 上のアカウントのパスワードは "store-pin-8902"。
-const PIN_PREFIX = "store-pin-";
-const PIN_LENGTH = 4;
+// アカウントは店舗ごとに Firebase Authentication へ登録する。
+// メールアドレスもパスワードもこのコードには持たない。照合は Firebase 側で行われる。
 
 const COLLECTION      = "trouble_reports";
 const HISTORY_LIMIT   = 50;
@@ -340,7 +352,7 @@ try {
   console.error("Firebase SDK を読み込めませんでした", err);
 }
 
-const CONFIGURED = Boolean(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId && STORE_ACCOUNT_EMAIL);
+const CONFIGURED = Boolean(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId);
 let auth = null, db = null;
 if (CONFIGURED && !SDK_ERROR) {
   const fb = initializeApp(FIREBASE_CONFIG);
@@ -409,6 +421,7 @@ const LS_PHRASES   = "str.saved_phrases";
 const LS_STORE     = "str.store_name";
 const LS_REPORTERS = "str.reporters";
 const LS_REPORTER  = "str.last_reporter";
+const LS_EMAIL     = "str.login_email";
 
 /* ====================== ユーティリティ ====================== */
 const $  = (id) => document.getElementById(id);
@@ -447,70 +460,53 @@ function toast(message, kind = "ok") {
 }
 
 /* ====================== 認証画面 ====================== */
-let pin = "";
+// 店舗ごとに Firebase Authentication のアカウントを作る。
+// 照合はすべて Firebase 側で行われ、パスワードはこのコードを通るだけで保存しない。
 let authBusy = false;
 
-function renderPinDots() {
-  $("pin-dots").innerHTML = Array.from({ length: PIN_LENGTH }, (_, i) =>
-    `<span class="w-3.5 h-3.5 rounded-full ${i < pin.length ? "bg-orange-500" : "bg-slate-700"}"></span>`
-  ).join("");
-}
-
-function buildKeypad() {
-  const keys = ["1","2","3","4","5","6","7","8","9","clear","0","back"];
-  $("keypad").innerHTML = keys.map((k) => {
-    if (k === "clear") return `<button type="button" data-key="clear" class="key h-16 rounded-2xl text-xs font-bold text-slate-400 active:bg-slate-800">クリア</button>`;
-    if (k === "back")  return `<button type="button" data-key="back" aria-label="1文字削除" class="key h-16 rounded-2xl text-slate-400 active:bg-slate-800"><i class="fa-solid fa-delete-left text-xl"></i></button>`;
-    return `<button type="button" data-key="${k}" class="key h-16 rounded-2xl bg-slate-800/80 border border-slate-700 text-2xl font-bold tabular-nums active:bg-slate-700">${k}</button>`;
-  }).join("");
-}
-
-$("keypad").addEventListener("click", (e) => {
-  const btn = e.target.closest("[data-key]");
-  if (!btn || authBusy) return;
-  const k = btn.dataset.key;
-  $("auth-msg").textContent = "";
-  if (k === "clear")      pin = "";
-  else if (k === "back")  pin = pin.slice(0, -1);
-  else if (pin.length < PIN_LENGTH) pin += k;
-  renderPinDots();
-  if (pin.length === PIN_LENGTH) attemptLogin();
-});
-
 const AUTH_ERRORS = {
-  "auth/invalid-credential": "PINが違います",
-  "auth/wrong-password":     "PINが違います",
-  "auth/user-not-found":     "店舗アカウントが見つかりません",
-  "auth/invalid-email":      "店舗アカウントの設定が不正です",
-  "auth/too-many-requests":  "試行回数が多すぎます。しばらく待ってください",
+  "auth/invalid-credential":     "メールアドレスかパスワードが違います",
+  "auth/wrong-password":         "パスワードが違います",
+  "auth/user-not-found":         "このメールアドレスのアカウントがありません",
+  "auth/invalid-email":          "メールアドレスの形式が正しくありません",
+  "auth/user-disabled":          "このアカウントは無効になっています",
+  "auth/too-many-requests":      "試行回数が多すぎます。しばらく待ってください",
   "auth/network-request-failed": "ネットワークに接続できません",
 };
 
-async function attemptLogin() {
-  if (SDK_ERROR)  { failAuth("通信に失敗しました。接続を確認してください"); return; }
+function failAuth(message) {
+  $("auth-msg").textContent = message;
+  $("login-form").classList.add("shake");
+  setTimeout(() => $("login-form").classList.remove("shake"), 400);
+}
+
+$("login-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (authBusy) return;
+
+  if (SDK_ERROR)   { failAuth("通信に失敗しました。接続を確認してください"); return; }
   if (!CONFIGURED) { failAuth("Firebase が未設定です"); return; }
+
+  const email    = $("login-email").value.trim();
+  const password = $("login-password").value;
+  if (!email || !password) { failAuth("メールアドレスとパスワードを入力してください"); return; }
+
   authBusy = true;
+  $("btn-login").disabled = true;
   $("auth-msg").innerHTML = '<span class="text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-1"></i>確認中…</span>';
   try {
     await setPersistence(auth, browserLocalPersistence);
-    // 照合は Firebase のサーバー側で行われる（クライアントでPINを突き合わせない）
-    await signInWithEmailAndPassword(auth, STORE_ACCOUNT_EMAIL, PIN_PREFIX + pin);
-    pin = "";
-    renderPinDots();
+    await signInWithEmailAndPassword(auth, email, password);
+    lsSet(LS_EMAIL, email);            // 次回は入力済みの状態で開く
+    $("login-password").value = "";
+    $("auth-msg").textContent = "";
   } catch (err) {
-    failAuth(AUTH_ERRORS[err.code] || "認証に失敗しました");
+    failAuth(AUTH_ERRORS[err.code] || "ログインできませんでした");
   } finally {
     authBusy = false;
+    $("btn-login").disabled = false;
   }
-}
-
-function failAuth(message) {
-  pin = "";
-  renderPinDots();
-  $("auth-msg").textContent = message;
-  $("pin-dots").classList.add("shake");
-  setTimeout(() => $("pin-dots").classList.remove("shake"), 400);
-}
+});
 
 /* ====================== 報告フォームの状態 ====================== */
 const form = {
@@ -1154,8 +1150,7 @@ function resetForm() {
 }
 
 /* ====================== 起動 ====================== */
-buildKeypad();
-renderPinDots();
+$("login-email").value = lsGet(LS_EMAIL, "");
 renderFixedChips();
 renderSavedChips();
 renderUrgency();
@@ -1187,8 +1182,7 @@ if (SDK_ERROR) {
       stopHistory();
       hide($("app"));
       show($("auth-screen"));
-      pin = "";
-      renderPinDots();
+      $("login-password").value = "";
       $("auth-msg").textContent = "";
     }
   });

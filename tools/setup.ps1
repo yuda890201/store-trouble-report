@@ -12,7 +12,7 @@
     4. ウェブアプリの登録と設定値の取得
     5. index.html への設定値の書き込み
     6. Firestore の作成とリージョンの確認、ルールの適用
-    7. 店舗共通アカウントの作成（PIN はこの画面で入力します）
+    7. 店舗のアカウントの作成（メールアドレスとパスワードを入力します）
     8. コミットして push（GitHub Pages へ自動デプロイ）
 
   何度実行しても問題ありません。すでに済んでいる手順は飛ばします。
@@ -21,7 +21,7 @@
   使用する Firebase プロジェクトの ID。省略すると一覧から選べます。
 
 .PARAMETER StoreEmail
-  店舗共通アカウントのメールアドレス。省略すると入力を求めます。
+  店舗のアカウントのメールアドレス。省略すると入力を求めます。
   実在しないドメインで構いませんが、形式は正しくしてください。
 
 .PARAMETER Location
@@ -37,8 +37,8 @@
   powershell -ExecutionPolicy Bypass -File tools\setup.ps1 -ProjectId my-project -StoreEmail store@example.com
 
 .NOTES
-  PIN はこのスクリプトにもリポジトリにも保存されません。
-  入力された PIN から組み立てたパスワードを Firebase に送るだけです。
+  パスワードはこのスクリプトにもリポジトリにも保存されません。
+  入力された内容を Firebase に送るだけです。
 #>
 [CmdletBinding()]
 param(
@@ -333,16 +333,6 @@ Write-Ok "設定値を取得しました（projectId: $($cfg.projectId)）"
 # ============================================== 5. index.html に書き込む --
 Write-Step "index.html に設定値を書き込みます"
 
-if (-not $StoreEmail) {
-  $suggest = "store@$ProjectId.example.com"
-  $entered = Read-Host "    店舗共通アカウントのメールアドレス [$suggest]"
-  if ([string]::IsNullOrWhiteSpace($entered)) { $StoreEmail = $suggest } else { $StoreEmail = $entered.Trim() }
-}
-if ($StoreEmail -notmatch '^[^@\s]+@[^@\s]+\.[^@\s]+$') {
-  Write-Fail "メールアドレスの形式が正しくありません: $StoreEmail"
-  exit 1
-}
-
 $storageBucket = $cfg.storageBucket
 if (-not $storageBucket) { $storageBucket = "$ProjectId.firebasestorage.app" }
 
@@ -356,10 +346,10 @@ const FIREBASE_CONFIG = {
   messagingSenderId: "$($cfg.messagingSenderId)",
   appId:             "$($cfg.appId)"
 };
-
-// 店舗共通アカウントのメールアドレス（Firebase Authentication に作成したもの）
-const STORE_ACCOUNT_EMAIL = "$StoreEmail";
 /* === FIREBASE_CONFIG_END === */
+
+// アカウントは店舗ごとに Firebase Authentication へ登録する。
+// メールアドレスもパスワードもこのコードには持たない。照合は Firebase 側で行われる。
 "@
 
 $html = [IO.File]::ReadAllText($IndexPath)
@@ -465,20 +455,28 @@ if ($LASTEXITCODE -eq 0) {
 }
 
 # ==================================================== 7. 店舗アカウント --
-Write-Step "店舗共通アカウントを用意します"
-Write-Info "PIN はこの画面でのみ使い、ファイルには一切保存しません。"
+Write-Step "店舗のアカウントを用意します"
+Write-Info "店舗ごとに1つ作ります。入力した内容はファイルに保存しません。"
+Write-Info "あとから追加する場合は、Firebase コンソールからでも作れます:"
+Write-Info "  https://console.firebase.google.com/project/$ProjectId/authentication/users"
 
-$securePin = Read-Host "    店舗共通PIN（4桁の数字）" -AsSecureString
-$bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePin)
-try   { $pin = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr) }
-finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
-
-if ($pin -notmatch '^\d{4}$') {
-  Write-Fail "PIN は4桁の数字で入力してください。"
+if (-not $StoreEmail) {
+  $StoreEmail = (Read-Host "    店舗のメールアドレス").Trim()
+}
+if ($StoreEmail -notmatch '^[^@\s]+@[^@\s]+\.[^@\s]+$') {
+  Write-Fail "メールアドレスの形式が正しくありません: $StoreEmail"
   exit 1
 }
-$password = "store-pin-$pin"
-$pin = $null
+
+$securePw = Read-Host "    パスワード（6文字以上）" -AsSecureString
+$bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePw)
+try   { $password = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr) }
+finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
+
+if ($password.Length -lt 6) {
+  Write-Fail "パスワードは6文字以上にしてください（Firebase の要件です）。"
+  exit 1
+}
 
 $signUpUri = "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=$($cfg.apiKey)"
 $signInUri = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=$($cfg.apiKey)"
@@ -486,22 +484,21 @@ $payload = @{ email = $StoreEmail; password = $password; returnSecureToken = $tr
 
 try {
   Invoke-RestMethod -Method Post -Uri $signUpUri -ContentType "application/json; charset=utf-8" -Body $payload -ErrorAction Stop | Out-Null
-  Write-Ok "店舗共通アカウントを作成しました: $StoreEmail"
+  Write-Ok "アカウントを作成しました: $StoreEmail"
 } catch {
   $code = Get-IdentityToolkitError $_
   if ($code -like "EMAIL_EXISTS*") {
-    Write-Info "アカウントは既にあります。入力された PIN で入れるか確認します…"
+    Write-Info "このアドレスのアカウントは既にあります。入力したパスワードで入れるか確認します…"
     try {
       Invoke-RestMethod -Method Post -Uri $signInUri -ContentType "application/json; charset=utf-8" -Body $payload -ErrorAction Stop | Out-Null
-      Write-Ok "既存のアカウントに、この PIN で入れることを確認しました"
+      Write-Ok "既存のアカウントに、このパスワードで入れることを確認しました"
     } catch {
       $password = $null
-      Stop-WithGuide "既にあるアカウントの PIN が、入力されたものと違います。" @(
+      Stop-WithGuide "既にあるアカウントのパスワードが、入力したものと違います。" @(
         "次のどちらかで直してください。",
         "",
-        "  A) 前の PIN を使う  … このスクリプトを実行し直して、前の PIN を入力する",
-        "  B) PIN を変える     … コンソールで $StoreEmail のパスワードを",
-        "                        store-pin-<新しいPIN> に変更してから実行し直す",
+        "  A) 前のパスワードを使う … 実行し直して、前のパスワードを入力する",
+        "  B) パスワードを変える   … コンソールで $StoreEmail のパスワードを変更してから実行し直す",
         "",
         "     https://console.firebase.google.com/project/$ProjectId/authentication/users"
       )
@@ -516,6 +513,10 @@ try {
       "  「メール / パスワード」を選び、上のトグルを有効にして保存してください。",
       "  （下の「メールリンク」は無効のままで構いません）"
     )
+  } elseif ($code -like "WEAK_PASSWORD*") {
+    $password = $null
+    Write-Fail "パスワードが短すぎます。6文字以上にしてください。"
+    exit 1
   } else {
     $password = $null
     Write-Fail "アカウントを作成できませんでした: $code"
@@ -566,6 +567,6 @@ Write-Host " アプリ    : https://yuda890201.github.io/store-trouble-report/"
 Write-Host " デモ版    : https://yuda890201.github.io/store-trouble-report/demo.html"
 Write-Host " コンソール: https://console.firebase.google.com/project/$ProjectId/overview"
 Write-Host ""
-Write-Host " ログインは、設定した PIN を4桁のテンキーで入力してください。" -ForegroundColor Gray
-Write-Host " PIN はこのリポジトリにもスクリプトにも保存されていません。" -ForegroundColor Gray
+Write-Host " ログインは、登録したメールアドレスとパスワードで行います。" -ForegroundColor Gray
+Write-Host " パスワードはこのリポジトリにもスクリプトにも保存されていません。" -ForegroundColor Gray
 Write-Host ""
