@@ -1,0 +1,31 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /trouble_reports/{docId} {
+      // ログイン済み（店舗共通アカウント）の端末だけが読める
+      allow read: if request.auth != null;
+
+      allow create: if request.auth != null
+                    && request.resource.data.comment is string
+                    && request.resource.data.comment.size() > 0
+                    && request.resource.data.comment.size() < 2000
+                    && request.resource.data.reporter is string
+                    && request.resource.data.reporter.size() > 0
+                    && request.resource.data.urgency in ['至急', '要対応', '通常'];
+
+      // 履歴からのステータス変更だけを許可する。報告の本文は書き換えさせない。
+      allow update: if request.auth != null
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['status', 'status_updated_at', 'status_updated_by'])
+                    && request.resource.data.status in ['未対応', '対応中', '完了'];
+
+      allow delete: if false;
+    }
+
+    // 上記以外は一切触らせない
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

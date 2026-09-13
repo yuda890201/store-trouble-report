@@ -285,8 +285,10 @@
 
 <script type="module">
 /* ======================================================================
-   設定 — ここに Firebase コンソールの値を入れてください
+   設定 — tools/setup.ps1 がこのブロックを書き換えます。
+   手で編集しても構いませんが、下の2行のマーカーは消さないでください。
    ====================================================================== */
+/* === FIREBASE_CONFIG_START === */
 const FIREBASE_CONFIG = {
   apiKey:            "",
   authDomain:        "",
@@ -298,6 +300,7 @@ const FIREBASE_CONFIG = {
 
 // 店舗共通アカウントのメールアドレス（Firebase Authentication に作成したもの）
 const STORE_ACCOUNT_EMAIL = "";
+/* === FIREBASE_CONFIG_END === */
 
 // PIN は「コードに書かない」。入力された PIN からこの接頭辞でパスワードを組み立て、
 // 照合は Firebase Authentication のサーバー側で行う。
