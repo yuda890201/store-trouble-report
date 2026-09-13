@@ -1,1 +1,953 @@
-<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>現場トラブル・不具合クイック報告</title><script src="https://cdn.tailwindcss.com"></script></head><body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans"><header class="bg-gradient-to-r from-orange-600 to-amber-600 p-4 text-white shadow sticky top-0 z-20"><div class="max-w-md mx-auto flex justify-between items-center"><h1 class="font-bold text-base">現場トラブル・不具合クイック報告</h1><span class="text-[10px] bg-black/30 px-2 py-0.5 rounded-full font-mono">Live</span></div></header><main class="flex-1 p-4 max-w-md w-full mx-auto space-y-4"><div id="toast" class="p-3 bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 rounded-xl text-xs font-semibold" style="display:none;">送信完了: データが保存されました！</div><div id="toast-error" class="p-3 bg-rose-500/20 border border-rose-500/40 text-rose-300 rounded-xl text-xs font-semibold" style="display:none;"></div><form onsubmit="appStudioSubmit(event)" class="space-y-3.5 bg-slate-900/90 border border-slate-800 p-4 rounded-2xl shadow-xl"><div class="space-y-1"><label class="text-[11px] font-semibold text-slate-300">対象区分</label><select name="target_type" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-xs"><option value="店舗設備・什器">店舗設備・什器</option><option value="自作・業務アプリ">自作・業務アプリ</option></select></div><div class="space-y-1"><label class="text-[11px] font-semibold text-slate-300">カテゴリ</label><select name="category" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-xs"><option value="レジ・POS">レジ・POS</option><option value="フライヤー・厨房">フライヤー・厨房</option><option value="冷ケース・什器">冷ケース・什器</option><option value="アプリ不具合">アプリ不具合</option><option value="通信・ネットワーク">通信・ネットワーク</option><option value="その他">その他</option></select></div><div class="space-y-1"><label class="text-[11px] font-semibold text-slate-300">クイックトラブル選択</label><select name="quick_trouble_preset" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-xs"><option value="直接入力">直接入力</option><option value="ラベル・レシート詰まり">ラベル・レシート詰まり</option><option value="油温が上がらない">油温が上がらない</option><option value="冷却温度の異常">冷却温度の異常</option><option value="画面フリーズ・操作不能">画面フリーズ・操作不能</option><option value="通信エラー・同期失敗">通信エラー・同期失敗</option><option value="破損・異音発生">破損・異音発生</option></select></div><div class="space-y-1"><label class="text-[11px] font-semibold text-slate-300">写真データ(Base64)</label><input type="text" name="photo_data" placeholder="" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-xs"></div><div class="space-y-1"><label class="text-[11px] font-semibold text-slate-300">トラブル詳細・コメント</label><textarea name="comment" rows="3" placeholder="具体的な状況を記入してください" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-xs"></textarea></div><div class="space-y-1"><label class="text-[11px] font-semibold text-slate-300">発生・報告日時</label><input type="datetime-local" name="report_time" placeholder="" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-xs"></div><div class="space-y-1"><label class="text-[11px] font-semibold text-slate-300">通知先Webhook URL</label><input type="text" name="webhook_endpoint" placeholder="" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-xs"></div><button type="submit" class="w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl shadow text-xs mt-3">データを記録・送信する</button></form><p class="text-[10px] text-slate-500 leading-relaxed">入力内容は記録・保存されます。個人情報や機密情報は入力しないでください。</p></main></body><script>async function appStudioSubmit(event){event.preventDefault();const form=event.target;const button=form.querySelector('button[type=submit]');const toast=document.getElementById('toast');const failure=document.getElementById('toast-error');toast.style.display='none';failure.style.display='none';button.disabled=true;const label=button.textContent;button.textContent='送信中...';const data={};for(const el of form.elements){if(!el.name)continue;data[el.name]=(el.type==='checkbox')?el.checked:el.value;}try{const response=await fetch("https://app-studio-840352034351.asia-northeast1.run.app/api/submit/store-trouble-report",{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data})});const result=await response.json().catch(()=>({}));if(!response.ok){throw new Error(result.error||('送信に失敗しました ('+response.status+')'));}toast.style.display='block';form.reset();setTimeout(()=>{toast.style.display='none';},4000);}catch(err){failure.textContent='送信できませんでした: '+err.message;failure.style.display='block';}finally{button.disabled=false;button.textContent=label;}}</script></html>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>現場トラブル・不具合クイック報告</title>
+<meta name="theme-color" content="#ea580c">
+<meta name="description" content="店舗現場のトラブル・不具合を10秒で報告するモバイルアプリ">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="トラブル報告">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<style>
+  :root { color-scheme: dark; }
+  body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
+  .is-hidden { display: none !important; }
+  .safe-b { padding-bottom: calc(0.5rem + env(safe-area-inset-bottom)); }
+  .safe-t { padding-top: calc(0.75rem + env(safe-area-inset-top)); }
+  /* large, thumb-friendly tiles */
+  .tile {
+    min-height: 88px;
+    transition: transform .12s ease, border-color .12s ease, background-color .12s ease;
+  }
+  .tile:active { transform: scale(.97); }
+  .tile-on { border-color: #f97316; background-color: rgba(249,115,22,.16); }
+  .key:active { transform: scale(.94); }
+  .key { transition: transform .1s ease, background-color .1s ease; }
+  .fade-in { animation: fade .22s ease both; }
+  @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .shake { animation: shake .38s ease; }
+  @keyframes shake { 10%,90%{transform:translateX(-3px)} 30%,70%{transform:translateX(5px)} 50%{transform:translateX(-5px)} }
+  textarea, input, select { font-size: 16px; } /* stop iOS zoom-on-focus */
+  ::-webkit-scrollbar { width: 0; height: 0; }
+</style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans antialiased">
+
+<!-- ============================= 認証（起動時） ============================= -->
+<div id="auth-screen" class="fixed inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center px-6">
+  <div class="w-full max-w-xs text-center">
+    <div class="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-orange-500 to-orange-700 flex items-center justify-center shadow-lg shadow-orange-900/40">
+      <i class="fa-solid fa-triangle-exclamation text-4xl text-white"></i>
+    </div>
+    <h1 class="mt-5 text-lg font-bold tracking-tight">現場トラブル・不具合<br>クイック報告</h1>
+    <p class="mt-2 text-xs text-slate-400">店舗共通PINを入力してください</p>
+
+    <div id="pin-dots" class="mt-7 flex justify-center gap-3.5"></div>
+    <p id="auth-msg" class="mt-4 text-xs text-rose-400 min-h-[1rem]"></p>
+
+    <div id="keypad" class="mt-3 grid grid-cols-3 gap-3"></div>
+  </div>
+  <div id="setup-warning" class="is-hidden fixed inset-x-0 bottom-0 safe-b px-5 pt-4 bg-amber-500/15 border-t border-amber-500/40">
+    <p class="text-[11px] leading-relaxed text-amber-200 max-w-md mx-auto">
+      <i class="fa-solid fa-circle-exclamation mr-1"></i>
+      <strong>未設定です。</strong> <code class="font-mono">index.html</code> 冒頭の <code class="font-mono">FIREBASE_CONFIG</code> と
+      <code class="font-mono">STORE_ACCOUNT_EMAIL</code> を入力すると認証・保存が有効になります。
+    </p>
+  </div>
+</div>
+
+<!-- ============================= アプリ本体 ============================= -->
+<div id="app" class="is-hidden min-h-screen flex flex-col">
+
+  <header class="sticky top-0 z-30 bg-gradient-to-r from-orange-600 to-orange-500 shadow-lg shadow-orange-950/30 safe-t pb-3 px-4">
+    <div class="max-w-md mx-auto flex items-center gap-3">
+      <i class="fa-solid fa-triangle-exclamation text-white/90"></i>
+      <h1 class="flex-1 font-bold text-[15px] text-white leading-tight">現場トラブル・不具合報告</h1>
+      <button id="btn-settings" aria-label="設定" class="w-10 h-10 -mr-1 rounded-full hover:bg-black/20 active:bg-black/30 flex items-center justify-center text-white">
+        <i class="fa-solid fa-gear text-lg"></i>
+      </button>
+    </div>
+  </header>
+
+  <main class="flex-1 w-full max-w-md mx-auto px-4 pt-4 pb-28">
+
+    <!-- ----------------------------- 報告ビュー ----------------------------- -->
+    <section id="view-report">
+
+      <!-- ステップ表示 -->
+      <div class="flex items-center gap-1.5 mb-4">
+        <div class="flex-1 flex gap-1.5" id="stepbar"></div>
+        <span id="steplabel" class="text-[11px] font-semibold text-orange-400 tabular-nums whitespace-nowrap"></span>
+      </div>
+
+      <!-- 選択済みサマリ（タップで戻れる） -->
+      <div id="crumbs" class="flex flex-wrap gap-1.5 mb-3"></div>
+
+      <!-- STEP 1 : 対象区分 -->
+      <div id="step-0" class="step">
+        <h2 class="text-base font-bold mb-1">何のトラブルですか？</h2>
+        <p class="text-xs text-slate-400 mb-3">対象を選ぶと次に進みます</p>
+        <div id="grid-target" class="grid grid-cols-1 gap-3"></div>
+      </div>
+
+      <!-- STEP 2 : カテゴリ -->
+      <div id="step-1" class="step is-hidden">
+        <h2 class="text-base font-bold mb-1">どの設備・機能ですか？</h2>
+        <p class="text-xs text-slate-400 mb-3">近いものを選んでください</p>
+        <div id="grid-category" class="grid grid-cols-2 gap-3"></div>
+      </div>
+
+      <!-- STEP 3 : 症状 -->
+      <div id="step-2" class="step is-hidden">
+        <h2 class="text-base font-bold mb-1">症状を選んでください</h2>
+        <p class="text-xs text-slate-400 mb-3">選ぶと詳細コメントに文章が入ります</p>
+        <div id="grid-preset" class="grid grid-cols-2 gap-3"></div>
+      </div>
+
+      <!-- STEP 4 : 詳細 -->
+      <div id="step-3" class="step is-hidden space-y-4">
+        <div>
+          <h2 class="text-base font-bold mb-1">詳細を確認して送信</h2>
+          <p class="text-xs text-slate-400">写真があると復旧が早くなります</p>
+        </div>
+
+        <!-- 写真 -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5">
+          <label class="text-xs font-bold text-slate-300 flex items-center gap-2">
+            <i class="fa-solid fa-camera text-orange-400"></i>写真<span class="text-[10px] font-medium text-slate-500">任意</span>
+          </label>
+          <div id="photo-empty" class="mt-3 grid grid-cols-2 gap-3">
+            <button type="button" id="btn-camera" class="tile flex flex-col items-center justify-center gap-2 bg-slate-800/70 border-2 border-slate-700 rounded-xl py-4 active:bg-slate-800">
+              <i class="fa-solid fa-camera text-2xl text-orange-400"></i>
+              <span class="text-xs font-bold">撮影する</span>
+            </button>
+            <button type="button" id="btn-album" class="tile flex flex-col items-center justify-center gap-2 bg-slate-800/70 border-2 border-slate-700 rounded-xl py-4 active:bg-slate-800">
+              <i class="fa-solid fa-images text-2xl text-orange-400"></i>
+              <span class="text-xs font-bold">アルバム</span>
+            </button>
+          </div>
+          <div id="photo-preview" class="is-hidden mt-3 relative">
+            <img id="photo-img" alt="添付写真のプレビュー" class="w-full rounded-xl border border-slate-700 max-h-64 object-contain bg-black">
+            <button type="button" id="btn-photo-remove" aria-label="写真を削除" class="absolute top-2 right-2 w-9 h-9 rounded-full bg-black/70 backdrop-blur flex items-center justify-center text-white active:bg-black">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+            <p id="photo-size" class="mt-1.5 text-[10px] text-slate-500 text-right"></p>
+          </div>
+          <p id="photo-busy" class="is-hidden mt-3 text-xs text-orange-300"><i class="fa-solid fa-spinner fa-spin mr-1"></i>圧縮しています…</p>
+          <input type="file" id="file-camera" accept="image/*" capture="environment" class="hidden">
+          <input type="file" id="file-album" accept="image/*" class="hidden">
+        </div>
+
+        <!-- コメント -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5">
+          <label for="comment" class="text-xs font-bold text-slate-300 flex items-center gap-2">
+            <i class="fa-solid fa-pen-to-square text-orange-400"></i>トラブル詳細<span class="text-[10px] font-bold text-orange-400">必須</span>
+          </label>
+          <textarea id="comment" name="comment" rows="4" placeholder="具体的な状況を記入してください"
+            class="mt-2.5 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm leading-relaxed placeholder:text-slate-600 focus:border-orange-500 focus:outline-none"></textarea>
+
+          <p class="mt-3 text-[11px] font-bold text-slate-400">状況を追加</p>
+          <div id="chips-fixed" class="mt-1.5 flex flex-wrap gap-1.5"></div>
+
+          <div class="mt-3 flex items-center justify-between">
+            <p class="text-[11px] font-bold text-slate-400">よく使う文言</p>
+            <button type="button" id="btn-save-phrase" class="text-[11px] font-bold text-orange-400 active:text-orange-300 px-2 py-1 -mr-2">
+              <i class="fa-solid fa-bookmark mr-1"></i>今の内容を登録
+            </button>
+          </div>
+          <div id="chips-saved" class="mt-1.5 flex flex-wrap gap-1.5"></div>
+        </div>
+
+        <!-- 発生日時 -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5">
+          <label for="report_time" class="text-xs font-bold text-slate-300 flex items-center gap-2">
+            <i class="fa-solid fa-clock text-orange-400"></i>発生・報告日時<span class="text-[10px] font-bold text-orange-400">必須</span>
+          </label>
+          <input type="datetime-local" id="report_time" name="report_time"
+            class="mt-2.5 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm focus:border-orange-500 focus:outline-none">
+          <button type="button" id="btn-now" class="mt-2 text-[11px] font-bold text-orange-400 active:text-orange-300">
+            <i class="fa-solid fa-rotate-right mr-1"></i>現在時刻にする
+          </button>
+        </div>
+
+        <button type="button" id="btn-submit"
+          class="w-full py-4 bg-orange-600 active:bg-orange-700 disabled:opacity-50 disabled:active:bg-orange-600 text-white font-bold rounded-2xl shadow-lg shadow-orange-950/40 text-base flex items-center justify-center gap-2">
+          <i class="fa-solid fa-paper-plane"></i><span id="submit-label">この内容で報告する</span>
+        </button>
+        <p class="text-[10px] text-slate-500 leading-relaxed text-center px-2">
+          入力内容は記録・保存されます。個人情報や機密情報は入力しないでください。
+        </p>
+      </div>
+
+      <!-- 戻る -->
+      <button type="button" id="btn-back" class="is-hidden mt-4 text-xs font-bold text-slate-400 active:text-slate-200 px-2 py-2">
+        <i class="fa-solid fa-chevron-left mr-1.5"></i>前に戻る
+      </button>
+    </section>
+
+    <!-- ----------------------------- 履歴ビュー ----------------------------- -->
+    <section id="view-history" class="is-hidden">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-base font-bold">直近の報告</h2>
+        <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+          <i class="fa-solid fa-circle text-[6px] align-middle mr-1"></i>リアルタイム
+        </span>
+      </div>
+      <div id="history-list" class="space-y-3"></div>
+      <p id="history-empty" class="is-hidden text-center text-xs text-slate-500 py-16">
+        <i class="fa-regular fa-folder-open text-3xl block mb-3 text-slate-700"></i>まだ報告はありません
+      </p>
+    </section>
+  </main>
+
+  <!-- 下部タブ -->
+  <nav class="fixed bottom-0 inset-x-0 z-30 bg-slate-900/95 backdrop-blur border-t border-slate-800 safe-b pt-2">
+    <div class="max-w-md mx-auto grid grid-cols-2 gap-1 px-4">
+      <button type="button" data-view="report" class="tabbtn flex flex-col items-center gap-1 py-1.5 rounded-xl">
+        <i class="fa-solid fa-triangle-exclamation text-lg"></i><span class="text-[10px] font-bold">報告する</span>
+      </button>
+      <button type="button" data-view="history" class="tabbtn flex flex-col items-center gap-1 py-1.5 rounded-xl">
+        <i class="fa-solid fa-list-ul text-lg"></i><span class="text-[10px] font-bold">履歴</span>
+      </button>
+    </div>
+  </nav>
+</div>
+
+<!-- ============================= 設定モーダル ============================= -->
+<div id="settings-modal" class="is-hidden fixed inset-0 z-40 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center">
+  <div class="w-full max-w-md bg-slate-900 border-t sm:border border-slate-700 rounded-t-3xl sm:rounded-3xl p-5 safe-b fade-in">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-base font-bold"><i class="fa-solid fa-gear text-orange-400 mr-2"></i>設定</h2>
+      <button type="button" id="btn-settings-close" aria-label="閉じる" class="w-9 h-9 rounded-full bg-slate-800 active:bg-slate-700 flex items-center justify-center">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <label for="webhook_endpoint" class="text-xs font-bold text-slate-300">通知先 Webhook URL</label>
+    <p class="text-[10px] text-slate-500 mt-1 leading-relaxed">Discord / Slack / GAS などの通知先。この端末に保存され、報告と一緒に送信されます。</p>
+    <input type="url" id="webhook_endpoint" name="webhook_endpoint" inputmode="url" placeholder="https://..."
+      class="mt-2 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm placeholder:text-slate-600 focus:border-orange-500 focus:outline-none">
+
+    <button type="button" id="btn-settings-save" class="mt-4 w-full py-3.5 bg-orange-600 active:bg-orange-700 text-white font-bold rounded-xl text-sm">
+      保存する
+    </button>
+
+    <div class="mt-5 pt-4 border-t border-slate-800 flex items-center justify-between">
+      <p class="text-[11px] text-slate-500">ログイン中: <span id="who" class="font-mono"></span></p>
+      <button type="button" id="btn-logout" class="text-[11px] font-bold text-rose-400 active:text-rose-300 px-2 py-1">
+        <i class="fa-solid fa-right-from-bracket mr-1"></i>ログアウト
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================= トースト ============================= -->
+<div id="toast" class="is-hidden fixed left-1/2 -translate-x-1/2 top-20 z-50 w-[calc(100%-2rem)] max-w-md">
+  <div id="toast-box" class="rounded-2xl px-4 py-3 text-sm font-bold shadow-2xl flex items-start gap-2.5">
+    <i id="toast-icon" class="mt-0.5"></i><span id="toast-text" class="flex-1"></span>
+  </div>
+</div>
+
+<script type="module">
+/* ======================================================================
+   設定 — ここに Firebase コンソールの値を入れてください
+   ====================================================================== */
+const FIREBASE_CONFIG = {
+  apiKey:            "",
+  authDomain:        "",
+  projectId:         "",
+  storageBucket:     "",
+  messagingSenderId: "",
+  appId:             ""
+};
+
+// 店舗共通アカウントのメールアドレス（Firebase Authentication に作成したもの）
+const STORE_ACCOUNT_EMAIL = "";
+
+// PIN は「コードに書かない」。入力された PIN からこの接頭辞でパスワードを組み立て、
+// 照合は Firebase Authentication のサーバー側で行う。
+// 例: PIN が 8902 なら、Firebase 上のアカウントのパスワードは "store-pin-8902"。
+const PIN_PREFIX = "store-pin-";
+const PIN_LENGTH = 4;
+
+const COLLECTION      = "trouble_reports";
+const HISTORY_LIMIT   = 20;
+const PHOTO_MAX_CHARS = 700000;   // Firestore の 1 ドキュメント上限(1MiB)に対する安全圏
+
+/* ====================== Firebase SDK ======================
+   静的 import だと SDK の取得に失敗した時点でモジュールごと止まり、
+   画面が無反応になる。現場は通信が不安定なので動的に読み、
+   失敗したらその旨を表示できるようにしている。                        */
+let SDK_ERROR = null;
+let initializeApp, getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
+    setPersistence, browserLocalPersistence,
+    getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp;
+
+try {
+  const [appModule, authModule, storeModule] = await Promise.all([
+    import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"),
+    import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"),
+    import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"),
+  ]);
+  ({ initializeApp } = appModule);
+  ({ getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
+     setPersistence, browserLocalPersistence } = authModule);
+  ({ getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot,
+     serverTimestamp } = storeModule);
+} catch (err) {
+  SDK_ERROR = err;
+  console.error("Firebase SDK を読み込めませんでした", err);
+}
+
+const CONFIGURED = Boolean(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId && STORE_ACCOUNT_EMAIL);
+let auth = null, db = null;
+if (CONFIGURED && !SDK_ERROR) {
+  const fb = initializeApp(FIREBASE_CONFIG);
+  auth = getAuth(fb);
+  db   = getFirestore(fb);
+}
+
+/* ====================== マスタデータ ====================== */
+const TARGET_TYPES = [
+  { value: "店舗設備・什器", icon: "fa-store",                 desc: "レジ・厨房機器・冷ケースなど" },
+  { value: "自作・業務アプリ", icon: "fa-mobile-screen-button", desc: "社内アプリ・ツールの不具合" },
+];
+
+const CATEGORIES = [
+  { value: "レジ・POS",        icon: "fa-cash-register" },
+  { value: "フライヤー・厨房",  icon: "fa-fire-burner" },
+  { value: "冷ケース・什器",    icon: "fa-snowflake" },
+  { value: "アプリ不具合",      icon: "fa-bug" },
+  { value: "通信・ネットワーク", icon: "fa-wifi" },
+  { value: "その他",           icon: "fa-ellipsis" },
+];
+
+// 対象区分ごとに「ありそうな順」に並べ替えるだけ。選択肢そのものは常に全件出す。
+const CATEGORY_ORDER = {
+  "店舗設備・什器":   ["レジ・POS", "フライヤー・厨房", "冷ケース・什器", "通信・ネットワーク", "その他", "アプリ不具合"],
+  "自作・業務アプリ": ["アプリ不具合", "通信・ネットワーク", "レジ・POS", "その他", "冷ケース・什器", "フライヤー・厨房"],
+};
+
+const PRESETS = [
+  { value: "ラベル・レシート詰まり",   icon: "fa-receipt",                 template: "ラベル／レシートが詰まり、出力できません。" },
+  { value: "油温が上がらない",         icon: "fa-temperature-arrow-down",  template: "フライヤーの油温が設定温度まで上がりません。" },
+  { value: "冷却温度の異常",           icon: "fa-temperature-high",        template: "冷ケースの庫内温度が規定値から外れています。" },
+  { value: "画面フリーズ・操作不能",   icon: "fa-hand",                    template: "画面がフリーズし、操作を受け付けません。" },
+  { value: "通信エラー・同期失敗",     icon: "fa-tower-broadcast",         template: "通信エラーが表示され、データの同期に失敗します。" },
+  { value: "破損・異音発生",           icon: "fa-wrench",                  template: "破損／異音が発生しています。" },
+  { value: "直接入力",                 icon: "fa-pen",                     template: "" },
+];
+
+const PRESET_HINT = {
+  "レジ・POS":        ["ラベル・レシート詰まり", "画面フリーズ・操作不能", "通信エラー・同期失敗"],
+  "フライヤー・厨房":  ["油温が上がらない", "破損・異音発生"],
+  "冷ケース・什器":    ["冷却温度の異常", "破損・異音発生"],
+  "アプリ不具合":      ["画面フリーズ・操作不能", "通信エラー・同期失敗"],
+  "通信・ネットワーク": ["通信エラー・同期失敗", "画面フリーズ・操作不能"],
+  "その他":            [],
+};
+
+const COMMENT_CHIPS = [
+  "営業に支障あり", "要至急対応", "使用停止中", "応急処置で継続中",
+  "再現性あり", "断続的に発生", "電源再投入済み", "業者へ連絡済み",
+];
+
+const STEP_LABELS = ["対象区分", "カテゴリ", "症状", "詳細"];
+
+const LS_WEBHOOK = "str.webhook_endpoint";
+const LS_PHRASES = "str.saved_phrases";
+
+/* ====================== ユーティリティ ====================== */
+const $  = (id) => document.getElementById(id);
+const show = (el) => el.classList.remove("is-hidden");
+const hide = (el) => el.classList.add("is-hidden");
+
+function nowLocalValue() {
+  const d = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
+  return d.toISOString().slice(0, 16);
+}
+
+function lsGet(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw === null ? fallback : JSON.parse(raw);
+  } catch { return fallback; }
+}
+function lsSet(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* 容量超過などは黙って無視 */ }
+}
+
+let toastTimer = null;
+function toast(message, kind = "ok") {
+  const styles = {
+    ok:   ["bg-emerald-500/20 border border-emerald-500/50 text-emerald-200", "fa-solid fa-circle-check text-emerald-400"],
+    err:  ["bg-rose-500/20 border border-rose-500/50 text-rose-200",          "fa-solid fa-circle-exclamation text-rose-400"],
+    info: ["bg-slate-800 border border-slate-600 text-slate-200",             "fa-solid fa-circle-info text-orange-400"],
+  };
+  const [box, icon] = styles[kind] || styles.info;
+  $("toast-box").className = "rounded-2xl px-4 py-3 text-sm font-bold shadow-2xl flex items-start gap-2.5 fade-in " + box;
+  $("toast-icon").className = "mt-0.5 " + icon;
+  $("toast-text").textContent = message;
+  show($("toast"));
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => hide($("toast")), 4000);
+}
+
+/* ====================== 認証画面 ====================== */
+let pin = "";
+let authBusy = false;
+
+function renderPinDots() {
+  $("pin-dots").innerHTML = Array.from({ length: PIN_LENGTH }, (_, i) =>
+    `<span class="w-3.5 h-3.5 rounded-full ${i < pin.length ? "bg-orange-500" : "bg-slate-700"}"></span>`
+  ).join("");
+}
+
+function buildKeypad() {
+  const keys = ["1","2","3","4","5","6","7","8","9","clear","0","back"];
+  $("keypad").innerHTML = keys.map((k) => {
+    if (k === "clear") return `<button type="button" data-key="clear" class="key h-16 rounded-2xl text-xs font-bold text-slate-400 active:bg-slate-800">クリア</button>`;
+    if (k === "back")  return `<button type="button" data-key="back" aria-label="1文字削除" class="key h-16 rounded-2xl text-slate-400 active:bg-slate-800"><i class="fa-solid fa-delete-left text-xl"></i></button>`;
+    return `<button type="button" data-key="${k}" class="key h-16 rounded-2xl bg-slate-800/80 border border-slate-700 text-2xl font-bold tabular-nums active:bg-slate-700">${k}</button>`;
+  }).join("");
+}
+
+$("keypad").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-key]");
+  if (!btn || authBusy) return;
+  const k = btn.dataset.key;
+  $("auth-msg").textContent = "";
+  if (k === "clear")      pin = "";
+  else if (k === "back")  pin = pin.slice(0, -1);
+  else if (pin.length < PIN_LENGTH) pin += k;
+  renderPinDots();
+  if (pin.length === PIN_LENGTH) attemptLogin();
+});
+
+const AUTH_ERRORS = {
+  "auth/invalid-credential": "PINが違います",
+  "auth/wrong-password":     "PINが違います",
+  "auth/user-not-found":     "店舗アカウントが見つかりません",
+  "auth/invalid-email":      "店舗アカウントの設定が不正です",
+  "auth/too-many-requests":  "試行回数が多すぎます。しばらく待ってください",
+  "auth/network-request-failed": "ネットワークに接続できません",
+};
+
+async function attemptLogin() {
+  if (SDK_ERROR)  { failAuth("通信に失敗しました。接続を確認してください"); return; }
+  if (!CONFIGURED) { failAuth("Firebase が未設定です"); return; }
+  authBusy = true;
+  $("auth-msg").innerHTML = '<span class="text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-1"></i>確認中…</span>';
+  try {
+    await setPersistence(auth, browserLocalPersistence);
+    // 照合は Firebase のサーバー側で行われる（クライアントでPINを突き合わせない）
+    await signInWithEmailAndPassword(auth, STORE_ACCOUNT_EMAIL, PIN_PREFIX + pin);
+    pin = "";
+    renderPinDots();
+  } catch (err) {
+    failAuth(AUTH_ERRORS[err.code] || "認証に失敗しました");
+  } finally {
+    authBusy = false;
+  }
+}
+
+function failAuth(message) {
+  pin = "";
+  renderPinDots();
+  $("auth-msg").textContent = message;
+  $("pin-dots").classList.add("shake");
+  setTimeout(() => $("pin-dots").classList.remove("shake"), 400);
+}
+
+/* ====================== 報告フォームの状態 ====================== */
+const form = {
+  target_type: "",
+  category: "",
+  quick_trouble_preset: "",
+  photo_data: "",
+};
+let step = 0;
+
+function tileHTML({ value, icon, desc, selected, wide }) {
+  return `
+    <button type="button" data-value="${value}"
+      class="tile ${wide ? "col-span-2" : ""} ${selected ? "tile-on" : "border-slate-700 bg-slate-900"}
+             border-2 rounded-2xl p-3.5 flex ${desc ? "items-center gap-3.5 text-left" : "flex-col items-center justify-center gap-2 text-center"}">
+      <i class="fa-solid ${icon} ${desc ? "text-2xl w-8" : "text-2xl"} text-orange-400"></i>
+      <span class="${desc ? "" : "px-1"}">
+        <span class="block text-sm font-bold leading-snug">${value}</span>
+        ${desc ? `<span class="block text-[11px] text-slate-400 mt-0.5">${desc}</span>` : ""}
+      </span>
+    </button>`;
+}
+
+function renderStepBar() {
+  $("stepbar").innerHTML = STEP_LABELS.map((_, i) =>
+    `<span class="h-1.5 flex-1 rounded-full ${i <= step ? "bg-orange-500" : "bg-slate-800"}"></span>`
+  ).join("");
+  $("steplabel").textContent = `${step + 1}/${STEP_LABELS.length} ${STEP_LABELS[step]}`;
+}
+
+function renderCrumbs() {
+  const picked = [
+    { step: 0, value: form.target_type },
+    { step: 1, value: form.category },
+    { step: 2, value: form.quick_trouble_preset },
+  ].filter((c) => c.value && c.step < step);
+
+  $("crumbs").innerHTML = picked.map((c) =>
+    `<button type="button" data-step="${c.step}"
+       class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-orange-500/15 border border-orange-500/40 text-orange-300 active:bg-orange-500/25">
+       ${c.value}<i class="fa-solid fa-pen text-[9px] ml-1.5 opacity-70"></i>
+     </button>`
+  ).join("");
+}
+
+$("crumbs").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-step]");
+  if (btn) goStep(Number(btn.dataset.step));
+});
+
+function renderTargets() {
+  $("grid-target").innerHTML = TARGET_TYPES
+    .map((t) => tileHTML({ ...t, selected: form.target_type === t.value }))
+    .join("");
+}
+
+function renderCategories() {
+  const order = CATEGORY_ORDER[form.target_type] || CATEGORIES.map((c) => c.value);
+  const sorted = [...CATEGORIES].sort((a, b) => order.indexOf(a.value) - order.indexOf(b.value));
+  $("grid-category").innerHTML = sorted
+    .map((c) => tileHTML({ ...c, selected: form.category === c.value }))
+    .join("");
+}
+
+function renderPresets() {
+  const hint = PRESET_HINT[form.category] || [];
+  const rank = (p) => {
+    if (p.value === "直接入力") return 99;
+    const i = hint.indexOf(p.value);
+    return i === -1 ? 50 : i;
+  };
+  const sorted = [...PRESETS].sort((a, b) => rank(a) - rank(b));
+  $("grid-preset").innerHTML = sorted
+    .map((p) => tileHTML({ ...p, selected: form.quick_trouble_preset === p.value, wide: p.value === "直接入力" }))
+    .join("");
+}
+
+$("grid-target").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-value]");
+  if (!btn) return;
+  form.target_type = btn.dataset.value;
+  goStep(1);
+});
+
+$("grid-category").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-value]");
+  if (!btn) return;
+  form.category = btn.dataset.value;
+  goStep(2);
+});
+
+$("grid-preset").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-value]");
+  if (!btn) return;
+  const value = btn.dataset.value;
+  form.quick_trouble_preset = value;
+  const preset = PRESETS.find((p) => p.value === value);
+  // 既存の入力を壊さない。空のときだけ定型文を入れる。
+  if (preset && preset.template && !$("comment").value.trim()) {
+    $("comment").value = preset.template;
+  }
+  goStep(3);
+});
+
+function goStep(next) {
+  step = next;
+  STEP_LABELS.forEach((_, i) => $("step-" + i).classList.add("is-hidden"));
+  const current = $("step-" + step);
+  current.classList.remove("is-hidden");
+  current.classList.remove("fade-in");
+  void current.offsetWidth;      // reflow: 毎回アニメーションを走らせる
+  current.classList.add("fade-in");
+
+  if (step === 1) renderCategories();
+  if (step === 2) renderPresets();
+  if (step === 0) renderTargets();
+
+  renderStepBar();
+  renderCrumbs();
+  $("btn-back").classList.toggle("is-hidden", step === 0);
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+$("btn-back").addEventListener("click", () => { if (step > 0) goStep(step - 1); });
+
+/* ====================== 定型文・よく使う文言 ====================== */
+function appendComment(text) {
+  const el = $("comment");
+  const base = el.value.trim();
+  if (base.includes(text)) return;
+  el.value = base ? `${base}\n${text}` : text;
+  el.focus();
+}
+
+function renderFixedChips() {
+  $("chips-fixed").innerHTML = COMMENT_CHIPS.map((c) =>
+    `<button type="button" data-chip="${c}"
+       class="text-[11px] font-bold px-2.5 py-1.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300 active:bg-slate-700">
+       + ${c}</button>`
+  ).join("");
+}
+
+function renderSavedChips() {
+  const phrases = lsGet(LS_PHRASES, []);
+  if (!phrases.length) {
+    $("chips-saved").innerHTML = `<p class="text-[11px] text-slate-600">登録された文言はありません</p>`;
+    return;
+  }
+  $("chips-saved").innerHTML = phrases.map((p, i) => `
+    <span class="inline-flex items-center rounded-full bg-orange-500/10 border border-orange-500/30 overflow-hidden">
+      <button type="button" data-phrase="${i}" class="text-[11px] font-bold pl-2.5 pr-1.5 py-1.5 text-orange-300 active:bg-orange-500/20 max-w-[200px] truncate">${escapeHTML(p)}</button>
+      <button type="button" data-del-phrase="${i}" aria-label="削除" class="px-2 py-1.5 text-orange-400/60 active:text-rose-400"><i class="fa-solid fa-xmark text-[10px]"></i></button>
+    </span>`
+  ).join("");
+}
+
+$("chips-fixed").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-chip]");
+  if (btn) appendComment(btn.dataset.chip);
+});
+
+$("chips-saved").addEventListener("click", (e) => {
+  const use = e.target.closest("[data-phrase]");
+  const del = e.target.closest("[data-del-phrase]");
+  const phrases = lsGet(LS_PHRASES, []);
+  if (use) { appendComment(phrases[Number(use.dataset.phrase)]); return; }
+  if (del) {
+    phrases.splice(Number(del.dataset.delPhrase), 1);
+    lsSet(LS_PHRASES, phrases);
+    renderSavedChips();
+  }
+});
+
+$("btn-save-phrase").addEventListener("click", () => {
+  const text = $("comment").value.trim();
+  if (!text) { toast("コメントを入力してから登録してください", "info"); return; }
+  const phrases = lsGet(LS_PHRASES, []);
+  if (phrases.includes(text)) { toast("すでに登録されています", "info"); return; }
+  phrases.unshift(text);
+  lsSet(LS_PHRASES, phrases.slice(0, 12));
+  renderSavedChips();
+  toast("よく使う文言に登録しました");
+});
+
+/* ====================== 写真 ====================== */
+async function compressImage(file) {
+  const dataUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("画像を読み込めませんでした"));
+    reader.readAsDataURL(file);
+  });
+
+  const img = await new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload  = () => resolve(image);
+    image.onerror = () => reject(new Error("画像を解析できませんでした"));
+    image.src = dataUrl;
+  });
+
+  for (const maxDim of [1280, 1024, 800, 640]) {
+    const scale  = Math.min(1, maxDim / Math.max(img.width, img.height));
+    const canvas = document.createElement("canvas");
+    canvas.width  = Math.max(1, Math.round(img.width  * scale));
+    canvas.height = Math.max(1, Math.round(img.height * scale));
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#ffffff";                      // 透過PNG対策
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    for (const quality of [0.72, 0.6, 0.48, 0.38]) {
+      const out = canvas.toDataURL("image/jpeg", quality);
+      if (out.length <= PHOTO_MAX_CHARS) return out;
+    }
+  }
+  throw new Error("画像が大きすぎます。別の写真でお試しください");
+}
+
+async function handleFile(input) {
+  const file = input.files && input.files[0];
+  input.value = "";                                 // 同じ写真を選び直せるように
+  if (!file) return;
+  hide($("photo-empty"));
+  hide($("photo-preview"));
+  show($("photo-busy"));
+  try {
+    form.photo_data = await compressImage(file);
+    $("photo-img").src = form.photo_data;
+    $("photo-size").textContent = `約 ${Math.round(form.photo_data.length / 1024)} KB`;
+    hide($("photo-busy"));
+    show($("photo-preview"));
+  } catch (err) {
+    form.photo_data = "";
+    hide($("photo-busy"));
+    show($("photo-empty"));
+    toast(err.message, "err");
+  }
+}
+
+$("btn-camera").addEventListener("click", () => $("file-camera").click());
+$("btn-album").addEventListener("click",  () => $("file-album").click());
+$("file-camera").addEventListener("change", (e) => handleFile(e.target));
+$("file-album").addEventListener("change",  (e) => handleFile(e.target));
+$("btn-photo-remove").addEventListener("click", () => {
+  form.photo_data = "";
+  $("photo-img").removeAttribute("src");
+  hide($("photo-preview"));
+  show($("photo-empty"));
+});
+
+/* ====================== 日時 ====================== */
+$("btn-now").addEventListener("click", () => {
+  $("report_time").value = nowLocalValue();
+  toast("現在時刻にしました", "info");
+});
+
+/* ====================== 設定 ====================== */
+$("btn-settings").addEventListener("click", () => {
+  $("webhook_endpoint").value = lsGet(LS_WEBHOOK, "");
+  $("who").textContent = (auth && auth.currentUser) ? auth.currentUser.email : "-";
+  show($("settings-modal"));
+});
+$("btn-settings-close").addEventListener("click", () => hide($("settings-modal")));
+$("settings-modal").addEventListener("click", (e) => {
+  if (e.target === $("settings-modal")) hide($("settings-modal"));
+});
+$("btn-settings-save").addEventListener("click", () => {
+  const url = $("webhook_endpoint").value.trim();
+  if (url && !/^https:\/\//i.test(url)) { toast("https:// で始まるURLを入力してください", "err"); return; }
+  lsSet(LS_WEBHOOK, url);
+  hide($("settings-modal"));
+  toast("設定を保存しました");
+});
+$("btn-logout").addEventListener("click", async () => {
+  hide($("settings-modal"));
+  if (auth) await signOut(auth);
+});
+
+/* ====================== タブ切替 ====================== */
+function setView(name) {
+  $("view-report").classList.toggle("is-hidden", name !== "report");
+  $("view-history").classList.toggle("is-hidden", name !== "history");
+  document.querySelectorAll(".tabbtn").forEach((b) => {
+    const on = b.dataset.view === name;
+    b.className = "tabbtn flex flex-col items-center gap-1 py-1.5 rounded-xl " +
+      (on ? "text-orange-400" : "text-slate-500");
+  });
+  window.scrollTo({ top: 0 });
+}
+document.querySelectorAll(".tabbtn").forEach((b) =>
+  b.addEventListener("click", () => setView(b.dataset.view))
+);
+
+/* ====================== 履歴フィード ====================== */
+const STATUS_STYLE = {
+  "未対応": "bg-rose-500/15 text-rose-300 border-rose-500/40",
+  "対応中": "bg-amber-500/15 text-amber-300 border-amber-500/40",
+  "完了":   "bg-emerald-500/15 text-emerald-300 border-emerald-500/40",
+};
+
+function relativeTime(date) {
+  if (!date) return "送信中…";
+  const diff = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (diff < 60)    return "たった今";
+  if (diff < 3600)  return `${Math.floor(diff / 60)}分前`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}時間前`;
+  return date.toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" });
+}
+
+function escapeHTML(s) {
+  return String(s).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function renderHistory(docs) {
+  $("history-empty").classList.toggle("is-hidden", docs.length > 0);
+  $("history-list").innerHTML = docs.map((d) => {
+    const status = d.status || "未対応";
+    const badge  = STATUS_STYLE[status] || STATUS_STYLE["未対応"];
+    const icon   = (CATEGORIES.find((c) => c.value === d.category) || {}).icon || "fa-ellipsis";
+    const when   = d.created_at && d.created_at.toDate ? d.created_at.toDate() : null;
+    return `
+      <article class="bg-slate-900 border border-slate-800 rounded-2xl p-3.5 fade-in">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${badge}">${escapeHTML(status)}</span>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300">
+            <i class="fa-solid ${icon} mr-1"></i>${escapeHTML(d.category || "-")}
+          </span>
+          <span class="ml-auto text-[10px] text-slate-500">${relativeTime(when)}</span>
+        </div>
+        ${d.photo_data ? `<img src="${escapeHTML(d.photo_data)}" alt="添付写真" class="w-full max-h-40 object-cover rounded-xl mb-2 border border-slate-800">` : ""}
+        <p class="text-sm leading-relaxed whitespace-pre-wrap break-words">${escapeHTML(d.comment || "")}</p>
+        <p class="mt-2 text-[10px] text-slate-500">
+          ${escapeHTML(d.target_type || "-")}
+          ${d.quick_trouble_preset && d.quick_trouble_preset !== "直接入力" ? " ・ " + escapeHTML(d.quick_trouble_preset) : ""}
+          ${d.report_time ? " ・ 発生 " + escapeHTML(d.report_time.replace("T", " ")) : ""}
+        </p>
+      </article>`;
+  }).join("");
+}
+
+let unsubscribeHistory = null;
+function startHistory() {
+  if (!db || unsubscribeHistory) return;
+  const q = query(collection(db, COLLECTION), orderBy("created_at", "desc"), limit(HISTORY_LIMIT));
+  unsubscribeHistory = onSnapshot(q,
+    (snap) => renderHistory(snap.docs.map((d) => d.data())),
+    (err)  => {
+      console.error(err);
+      $("history-list").innerHTML =
+        `<p class="text-xs text-rose-400 py-8 text-center">履歴を取得できませんでした（${escapeHTML(err.code || err.message)}）</p>`;
+    }
+  );
+}
+function stopHistory() {
+  if (unsubscribeHistory) { unsubscribeHistory(); unsubscribeHistory = null; }
+}
+
+/* ====================== 送信 ====================== */
+async function notifyWebhook(url, record) {
+  if (!url) return;
+  const text =
+    `【現場トラブル報告】${record.category}\n` +
+    `対象: ${record.target_type}\n` +
+    `症状: ${record.quick_trouble_preset}\n` +
+    `発生: ${record.report_time.replace("T", " ")}\n` +
+    `内容: ${record.comment}` +
+    (record.photo_data ? "\n（写真あり）" : "");
+  const { photo_data, ...withoutPhoto } = record;   // 画像本体は通知に載せない
+  try {
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: text, text, report: { ...withoutPhoto, has_photo: Boolean(photo_data) } }),
+    });
+  } catch (err) {
+    // 通知先の CORS 設定次第で失敗する。報告そのものは保存済みなので握りつぶす。
+    console.warn("webhook notification failed", err);
+  }
+}
+
+let submitting = false;
+
+$("btn-submit").addEventListener("click", async () => {
+  if (submitting) return;
+
+  const comment = $("comment").value.trim();
+  const reportTime = $("report_time").value;
+
+  if (!form.target_type) { toast("対象区分を選んでください", "err"); goStep(0); return; }
+  if (!form.category)    { toast("カテゴリを選んでください", "err"); goStep(1); return; }
+  if (!comment)          { toast("トラブル詳細を入力してください", "err"); $("comment").focus(); return; }
+  if (!reportTime)       { toast("発生・報告日時を入力してください", "err"); $("report_time").focus(); return; }
+  if (!db || !auth.currentUser) { toast("ログイン状態を確認できません", "err"); return; }
+
+  submitting = true;
+  const button = $("btn-submit");
+  button.disabled = true;
+  $("submit-label").textContent = "送信中…";
+
+  const webhook = lsGet(LS_WEBHOOK, "");
+  const record = {
+    target_type:          form.target_type,
+    category:             form.category,
+    quick_trouble_preset: form.quick_trouble_preset || "直接入力",
+    photo_data:           form.photo_data,
+    comment,
+    report_time:          reportTime,
+    webhook_endpoint:     webhook,
+  };
+
+  try {
+    await addDoc(collection(db, COLLECTION), {
+      ...record,
+      status:       "未対応",
+      reporter_uid: auth.currentUser.uid,
+      created_at:   serverTimestamp(),
+    });
+    notifyWebhook(webhook, record);
+    resetForm();
+    toast("送信完了: 報告を記録しました");
+    setView("history");
+  } catch (err) {
+    console.error(err);
+    const reason = err.code === "permission-denied"
+      ? "保存権限がありません（Firestore ルールを確認してください）"
+      : (err.message || "不明なエラー");
+    toast("送信できませんでした: " + reason, "err");
+  } finally {
+    submitting = false;
+    button.disabled = false;
+    $("submit-label").textContent = "この内容で報告する";
+  }
+});
+
+function resetForm() {
+  form.target_type = "";
+  form.category = "";
+  form.quick_trouble_preset = "";
+  form.photo_data = "";
+  $("comment").value = "";
+  $("photo-img").removeAttribute("src");
+  hide($("photo-preview"));
+  show($("photo-empty"));
+  $("report_time").value = nowLocalValue();   // 初期値は常に現在時刻
+  renderTargets();
+  goStep(0);
+}
+
+/* ====================== 起動 ====================== */
+buildKeypad();
+renderPinDots();
+renderFixedChips();
+renderSavedChips();
+renderTargets();
+renderStepBar();
+$("report_time").value = nowLocalValue();
+setView("report");
+
+if (SDK_ERROR) {
+  $("auth-msg").innerHTML =
+    '通信に失敗しました。接続を確認してください' +
+    '<button type="button" id="btn-reload" class="block mx-auto mt-3 px-4 py-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 font-bold">再読み込み</button>';
+  $("btn-reload").addEventListener("click", () => location.reload());
+} else if (!CONFIGURED) {
+  show($("setup-warning"));
+  $("auth-msg").textContent = "Firebase が未設定のため利用できません";
+} else {
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      hide($("auth-screen"));
+      show($("app"));
+      $("report_time").value = nowLocalValue();
+      startHistory();
+    } else {
+      stopHistory();
+      hide($("app"));
+      show($("auth-screen"));
+      pin = "";
+      renderPinDots();
+      $("auth-msg").textContent = "";
+    }
+  });
+}
+</script>
+</body>
+</html>

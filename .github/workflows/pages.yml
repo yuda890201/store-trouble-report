@@ -1,0 +1,52 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+      - claude/laughing-fermat-on1h61
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 公開中のデプロイは中断させず、後続を待たせる
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  # 作業ブランチでもビルドだけは回して、生成スクリプトの壊れに気づけるようにする
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          # リポジトリ設定で Pages が未有効なら有効化を試みる
+          enablement: true
+
+      - name: Build site
+        run: node tools/build-demo.mjs
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  # github-pages 環境はデフォルトブランチからのデプロイしか許可していないため、
+  # 実際の公開は main に入ったときだけ行う。
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
