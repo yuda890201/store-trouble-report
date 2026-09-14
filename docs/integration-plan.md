@@ -46,13 +46,25 @@ function isStoreAccount() {
 ルールを間違えると報告が 1 件も送れなくなるため、エミュレータ相手の自動テストを置きました。
 `firestore.rules` を触ったら、本番に貼る前に `npm test` を通してください。
 
-### 3. 閲覧アカウントを作るスクリプト（`tools/add-viewer.ps1`）
+### 3. 仕上げを一括で行うスクリプト（`tools/finish-integration.ps1`）
 
 ```
-powershell -ExecutionPolicy Bypass -File tools\add-viewer.ps1
+powershell -ExecutionPolicy Bypass -File tools\finish-integration.ps1
 ```
 
-パスワードを自動生成して表示します。表示された内容を先方に渡します。
+次をまとめて行う。何度実行してもよい。
+
+1. `git pull` で最新にする
+2. 手元の `firestore.rules` が最新かを確認する
+3. 閲覧アカウントを作る（パスワードは自動生成）
+4. **そのアカウントで本番の Firestore を実際に叩き、読めること・書けないことを確かめる**
+5. パスワードを埋めた回答書をデスクトップに出す
+
+4 が肝心。ルールはエミュレータで検証してあるが、**コンソールに貼ったものが効いているか
+は実際に叩かないと分からない。** 書けてしまった場合はその場で止まり、貼り直しを促す。
+
+回答書にはパスワードが入るため、リポジトリの外にしか出力しない（出力先がリポジトリ内
+だった場合はエラーで止まる）。
 
 ## 先方に渡すもの
 

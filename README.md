@@ -24,6 +24,8 @@
 | `apple-touch-icon.png` | iOS ホーム画面用アイコン |
 | `firebase.json` / `firestore.rules` | Firestore のセキュリティルール。`firebase deploy` で適用します |
 | `tools/setup.ps1` | Windows 向けの一括セットアップスクリプト |
+| `tools/finish-integration.ps1` | 店舗コミュニケーションアプリとの連動の仕上げ。閲覧アカウントを作り、本番のルールが効いているか実際に確かめます |
+| `tools/rules-test/` | `firestore.rules` のテスト（エミュレータ） |
 | `favicon-32.png` | ブラウザタブ用アイコン |
 
 ## セットアップ
