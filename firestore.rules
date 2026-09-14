@@ -2,11 +2,20 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // 報告を書けるのは店舗アカウント（fm+数字）だけ。
+    // 店舗コミュニケーションアプリ用の閲覧アカウントは別ドメインなので、ここで弾かれる。
+    function isStoreAccount() {
+      return request.auth != null
+             && request.auth.token.email is string
+             && request.auth.token.email.matches('^fm[0-9]{3,8}@fm[.]example[.]com$');
+    }
+
     match /trouble_reports/{docId} {
-      // ログイン済み（店舗共通アカウント）の端末だけが読める
+      // ログイン済みなら読める。店舗アカウントと閲覧アカウントの両方が対象。
       allow read: if request.auth != null;
 
-      allow create: if request.auth != null
+      allow create: if isStoreAccount()
                     && request.resource.data.comment is string
                     && request.resource.data.comment.size() > 0
                     && request.resource.data.comment.size() < 2000
@@ -14,7 +23,7 @@ service cloud.firestore {
                     && request.resource.data.reporter.size() > 0;
 
       // 履歴からのステータス変更だけを許可する。報告の本文は書き換えさせない。
-      allow update: if request.auth != null
+      allow update: if isStoreAccount()
                     && request.resource.data.diff(resource.data).affectedKeys()
                          .hasOnly(['status', 'status_updated_at', 'status_updated_by'])
                     && request.resource.data.status in ['未対応', '対応中', '完了'];

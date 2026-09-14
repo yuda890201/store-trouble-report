@@ -1,2 +1,7 @@
 # tools/build-demo.mjs が生成する公開用ディレクトリ
 _site/
+
+# ルールテストの依存（npm install で入る）
+tools/rules-test/node_modules/
+tools/rules-test/package-lock.json
+tools/rules-test/firebase-debug.log
