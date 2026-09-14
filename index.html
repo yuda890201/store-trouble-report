@@ -379,6 +379,9 @@ const LOGIN_DOMAIN = "fm.example.com";
 const LOGIN_DIGITS = /^[0-9]{3,8}$/;
 
 const COLLECTION      = "trouble_reports";
+// 写真は別のコレクションに置く。Firestore は文書の一部だけを読めないので、
+// 同じ文書に入れておくと一覧を開くたびに写真まで全部ダウンロードすることになる。
+const PHOTO_COLLECTION = "trouble_report_photos";
 const HISTORY_LIMIT   = 50;
 // Firestore の 1 ドキュメント上限(1MiB)に対する安全圏。写真はここに直接入れる。
 const PHOTO_MAX_CHARS = 700000;
@@ -390,7 +393,7 @@ const PHOTO_MAX_CHARS = 700000;
 let SDK_ERROR = null;
 let initializeApp, getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
     setPersistence, browserLocalPersistence,
-    getFirestore, collection, doc, addDoc, updateDoc, query, orderBy, limit,
+    getFirestore, collection, doc, setDoc, getDoc, updateDoc, query, orderBy, limit,
     onSnapshot, serverTimestamp;
 
 try {
@@ -402,7 +405,7 @@ try {
   ({ initializeApp } = appModule);
   ({ getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
      setPersistence, browserLocalPersistence } = authModule);
-  ({ getFirestore, collection, doc, addDoc, updateDoc, query, orderBy, limit,
+  ({ getFirestore, collection, doc, setDoc, getDoc, updateDoc, query, orderBy, limit,
      onSnapshot, serverTimestamp } = storeModule);
 } catch (err) {
   SDK_ERROR = err;
@@ -561,6 +564,8 @@ const I18N = {
     take_photo: "撮影する", from_album: "アルバム", compressing: "圧縮しています…",
     photo_full: "写真は1枚までです", photo_too_big: "画像が大きすぎます。別の写真でお試しください",
     photo_read_fail: "画像を読み込めませんでした", photo_parse_fail: "画像を解析できませんでした",
+    show_photo: "写真を見る", photo_loading: "読み込んでいます…",
+    photo_load_fail: "写真を読み込めませんでした",
 
     detail: "トラブル詳細", detail_ph: "具体的な状況を記入してください",
     add_situation: "状況を追加",
@@ -654,6 +659,8 @@ const I18N = {
     take_photo: "Take photo", from_album: "From album", compressing: "Compressing…",
     photo_full: "Only one photo can be attached", photo_too_big: "Image is too large. Try another photo",
     photo_read_fail: "Could not read the image", photo_parse_fail: "Could not process the image",
+    show_photo: "Show photo", photo_loading: "Loading…",
+    photo_load_fail: "Could not load the photo",
 
     detail: "What happened", detail_ph: "Describe what you saw",
     add_situation: "Add a note",
@@ -747,6 +754,8 @@ const I18N = {
     take_photo: "फोटो खिच्ने", from_album: "एल्बमबाट", compressing: "मिलाउँदै…",
     photo_full: "एउटा मात्र फोटो राख्न मिल्छ", photo_too_big: "फोटो धेरै ठूलो छ। अर्को प्रयास गर्नुहोस्",
     photo_read_fail: "फोटो पढ्न सकिएन", photo_parse_fail: "फोटो प्रशोधन गर्न सकिएन",
+    show_photo: "फोटो हेर्ने", photo_loading: "ल्याउँदै…",
+    photo_load_fail: "फोटो ल्याउन सकिएन",
 
     detail: "के भयो", detail_ph: "के देख्नुभयो लेख्नुहोस्",
     add_situation: "अवस्था थप्ने",
@@ -1561,8 +1570,7 @@ function renderHistory() {
             <i class="fa-solid ${categoryIcon(d.category)} mr-1"></i>${escapeHTML(cat)}</span>` : ""}
           <span class="ml-auto text-[10px] text-slate-500">${escapeHTML(relativeTime(when))}</span>
         </div>
-        ${d.photo_data ? `<img src="${escapeHTML(d.photo_data)}" alt="" loading="lazy"
-          class="w-full max-h-48 object-cover rounded-xl mb-2 border border-slate-800 bg-black">` : ""}
+        ${photoHTML(d)}
         <p class="text-sm leading-relaxed whitespace-pre-wrap break-words">${escapeHTML(d.comment || "")}</p>
         <p class="mt-2 text-[10px] text-slate-500 leading-relaxed">
           ${who ? who + "<br>" : ""}
@@ -1571,6 +1579,47 @@ function renderHistory() {
       </article>`;
   }).join("");
 }
+
+// 写真は開いたときだけ読む。一度読んだものは覚えておき、
+// onSnapshot による描き直しで消えたり読み直したりしないようにする。
+const photoCache = new Map();
+
+function showPhotoLabel() {
+  return `<i class="fa-solid fa-image text-orange-400"></i>${escapeHTML(t("show_photo"))}`;
+}
+
+function photoHTML(d) {
+  // photo_data を直接持っているのは分離前に送られた古い報告
+  const inline = d.photo_data || photoCache.get(d.id);
+  if (inline) {
+    return `<img src="${escapeHTML(inline)}" alt="" loading="lazy"
+      class="w-full max-h-80 object-contain rounded-xl mb-2 border border-slate-800 bg-black">`;
+  }
+  if (!d.has_photo) return "";
+  return `<button type="button" data-photo-id="${escapeHTML(d.id)}"
+    class="w-full mb-2 py-2.5 rounded-xl bg-slate-800 border border-slate-700 active:bg-slate-700
+           text-slate-200 text-xs font-bold flex items-center justify-center gap-2">
+    ${showPhotoLabel()}</button>`;
+}
+
+$("history-list").addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-photo-id]");
+  if (!btn || btn.disabled || !db) return;
+  const id = btn.dataset.photoId;
+  btn.disabled = true;
+  btn.textContent = t("photo_loading");
+  try {
+    const snap = await getDoc(doc(db, PHOTO_COLLECTION, id));
+    const data = snap.exists() ? snap.data().photo_data : "";
+    if (!data) throw new Error(t("photo_load_fail"));
+    photoCache.set(id, data);
+    renderHistory();
+  } catch (err) {
+    btn.disabled = false;
+    btn.innerHTML = showPhotoLabel();
+    toast(err.code === "permission-denied" ? t("no_permission") : t("photo_load_fail"), "err");
+  }
+});
 
 // 履歴カードのバッジをタップして 未対応 → 対応中 → 完了 と進める
 $("history-list").addEventListener("click", async (e) => {
@@ -1600,7 +1649,7 @@ function reportToText(d) {
     [d.store_name, d.reporter].filter(Boolean).join(" / "),
     (d.comment || "").trim(),
   ];
-  if (d.photo_data) lines.push("(写真あり)");
+  if (d.photo_data || d.has_photo) lines.push("(写真あり)");
   return lines.filter(Boolean).join("\n");
 }
 
@@ -1660,22 +1709,19 @@ function notifyText(record) {
   rows.push(`${L("l_when")}: ${record.report_time.replace("T", " ")}`);
   rows.push("");
   rows.push(record.comment);
-  if (record.photo_data) rows.push("", `(${L("photo_yes")})`);
+  if (record.has_photo) rows.push("", `(${L("photo_yes")})`);
   return rows.join("\n");
 }
 
 async function notifyWebhook(url, record) {
   if (!url) return;
   const text = notifyText(record);
-  const { photo_data, ...withoutPhoto } = record;   // 画像本体は通知に載せない
   try {
+    // record には写真本体が入っていない（has_photo だけを持つ）ので、そのまま載せてよい
     await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        content: text, text,
-        report: { ...withoutPhoto, has_photo: Boolean(photo_data) },
-      }),
+      body: JSON.stringify({ content: text, text, report: record }),
     });
   } catch (err) {
     // 通知先の CORS 設定次第で失敗する。報告そのものは保存済みなので握りつぶす。
@@ -1725,6 +1771,7 @@ $("btn-submit").addEventListener("click", async () => {
   $("submit-label").textContent = t("submitting");
 
   const webhook = lsGet(LS_WEBHOOK, "");
+  const photo   = form.photos.length ? form.photos[0].dataUrl : "";
   const record = {
     target_type:          form.target_type,
     // 設備はカテゴリを選ばせないので、対象区分をそのままカテゴリとして持つ
@@ -1732,14 +1779,23 @@ $("btn-submit").addEventListener("click", async () => {
     quick_trouble_preset: form.symptom || "",
     reporter,
     store_name:           lsGet(LS_STORE, ""),
-    photo_data:           form.photos.length ? form.photos[0].dataUrl : "",
+    has_photo:            Boolean(photo),
     comment,
     report_time:          reportTime,
     webhook_endpoint:     webhook,
   };
 
   try {
-    await addDoc(collection(db, COLLECTION), {
+    // ID を先に決めて、写真 → 報告の順に書く。
+    // 逆にすると写真の保存に失敗したとき、報告だけが「写真あり」で残ってしまう。
+    const ref = doc(collection(db, COLLECTION));
+    if (photo) {
+      await setDoc(doc(db, PHOTO_COLLECTION, ref.id), {
+        photo_data: photo,
+        created_at: serverTimestamp(),
+      });
+    }
+    await setDoc(ref, {
       ...record,
       status:       "未対応",
       reporter_uid: auth.currentUser.uid,
