@@ -31,6 +31,20 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // 写真は本体と別に置く。Firestore は文書の一部だけを読めないため、
+    // 同じ文書に入れると一覧を開くたびに写真まで全部ダウンロードされる。
+    match /trouble_report_photos/{docId} {
+      allow read: if request.auth != null;
+
+      allow create: if isStoreAccount()
+                    && request.resource.data.photo_data is string
+                    && request.resource.data.photo_data.size() > 0
+                    && request.resource.data.photo_data.size() < 1000000;
+
+      // 一度入れた写真は差し替えも削除もさせない
+      allow update, delete: if false;
+    }
+
     // 上記以外は一切触らせない
     match /{document=**} {
       allow read, write: if false;

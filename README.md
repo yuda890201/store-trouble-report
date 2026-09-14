@@ -133,32 +133,18 @@ const FIREBASE_CONFIG = {
 
 #### 4. Firestore セキュリティルール
 
-ログイン済みの端末だけが読み書きできるようにします。
+**リポジトリ直下の `firestore.rules` の中身をそのまま貼ってください。** ここに写しを置くと
+必ず食い違うので、正はそのファイルだけです。中身の要点は次のとおりです。
 
-```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /trouble_reports/{docId} {
-      allow read:   if request.auth != null;
-      allow create: if request.auth != null
-                    && request.resource.data.comment is string
-                    && request.resource.data.comment.size() > 0
-                    && request.resource.data.comment.size() < 2000
-                    && request.resource.data.reporter is string
-                    && request.resource.data.reporter.size() > 0;
+- **読める**のはログイン済みの端末（店舗アカウントと、連動先の閲覧アカウント）
+- **書ける**のは店舗アカウント（`fm`＋数字＠`fm.example.com`）だけ。
+  連動先に渡す閲覧アカウントは別ドメインなので弾かれます
+- 更新はステータスの3つのキーだけ。本文は書き換えられません
+- 削除はできません
+- `trouble_reports` と `trouble_report_photos` 以外には一切触れません
 
-      // 履歴からのステータス変更だけを許可する。本文は書き換えさせない。
-      allow update: if request.auth != null
-                    && request.resource.data.diff(resource.data).affectedKeys()
-                         .hasOnly(['status', 'status_updated_at', 'status_updated_by'])
-                    && request.resource.data.status in ['未対応', '対応中', '完了'];
-
-      allow delete: if false;
-    }
-  }
-}
-```
+ルールを書き換えたときは、本番に貼る前に `tools/rules-test/` のテストを通してください
+（`cd tools/rules-test && npm install && npm test`）。
 
 ### 保存されるデータ
 
@@ -171,7 +157,7 @@ service cloud.firestore {
 | `quick_trouble_preset` | string | 選んだ症状。設備や自由入力の場合は空文字 |
 | `reporter` | string | 報告者名（必須） |
 | `store_name` | string | 設定画面で登録した店舗名 |
-| `photo_data` | string | 圧縮済み写真の Base64 データURL。未添付なら空文字 |
+| `has_photo` | bool | 写真があるかどうか。本体は別コレクション（下記） |
 | `comment` | string | トラブル詳細（必須） |
 | `report_time` | string | 発生・報告日時（必須、`datetime-local` の値） |
 | `webhook_endpoint` | string | 設定画面で登録した通知先URL |
@@ -183,6 +169,23 @@ service cloud.firestore {
 
 `reporter_uid` は店舗アカウントの UID です。同じ店舗のスタッフは同じ値になるので、
 誰が報告したかは `reporter` で判断してください。
+
+#### 写真は別コレクション
+
+写真は `trouble_report_photos` に、**報告と同じドキュメントIDで**入ります。
+
+| フィールド | 型 | 内容 |
+| --- | --- | --- |
+| `photo_data` | string | 圧縮済み写真の Base64 データURL |
+| `created_at` | timestamp | サーバー時刻 |
+
+Firestore はドキュメントの一部だけを読むことができません。写真を報告と同じドキュメントに
+入れると、一覧を開くたびに全件の写真までダウンロードすることになり、無料プランの転送量
+（月10GiB）をすぐ使い切ります。そのため分けてあり、**写真は履歴で「写真を見る」を押した
+ときに1件だけ読みます。**
+
+分離前に送られた報告は `photo_data` を本体に持っています。アプリはその形も今までどおり
+表示するので、古いデータを移行する必要はありません。
 
 履歴カードのステータスバッジをタップすると `未対応` → `対応中` → `完了` の順に変わります。
 変更できるのは `status` と付随する2フィールドだけで、報告の本文は書き換えられません（上記ルールで制限しています）。

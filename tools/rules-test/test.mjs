@@ -20,13 +20,15 @@ const anon   = env.unauthenticatedContext().firestore();
 const REPORT = {
   target_type: '自作・業務アプリ', category: '勤怠・シフト', quick_trouble_preset: '保存できない',
   comment: '保存ボタンを押しても戻りません', reporter: 'ゆだ', store_name: 'みなと店',
-  photo_data: '', report_time: '2026-09-13T10:30', webhook_endpoint: '',
+  has_photo: true, report_time: '2026-09-13T10:30', webhook_endpoint: '',
   status: '未対応', reporter_uid: 'u_store',
 };
+const PHOTO = { photo_data: 'data:image/jpeg;base64,/9j/4AAQSkZJRg' };
 
 // 既存データを1件仕込む（ルールを迂回して書く）
 await env.withSecurityRulesDisabled(async (c) => {
   await setDoc(doc(c.firestore(), 'trouble_reports/seed'), REPORT);
+  await setDoc(doc(c.firestore(), 'trouble_report_photos/seed'), PHOTO);
   await setDoc(doc(c.firestore(), 'secret_stuff/x'), { a: 1 });
 });
 
@@ -54,6 +56,20 @@ await check('閲覧はステータスを変えられない', () => assertFails(
   updateDoc(doc(viewer, 'trouble_reports/seed'), { status: '完了', status_updated_at: 'x', status_updated_by: 'v' })));
 await check('閲覧は削除できない',   () => assertFails(deleteDoc(doc(viewer, 'trouble_reports/seed'))));
 await check('閲覧も他のコレクションは触れない', () => assertFails(getDoc(doc(viewer, 'secret_stuff/x'))));
+
+// --- 写真は別コレクション ---
+await check('店舗は写真を入れられる',   () => assertSucceeds(setDoc(doc(store, 'trouble_report_photos/n1'), PHOTO)));
+await check('店舗は写真を読める',       () => assertSucceeds(getDoc(doc(store, 'trouble_report_photos/seed'))));
+await check('空の写真は入れられない',   () => assertFails(setDoc(doc(store, 'trouble_report_photos/n9'), { photo_data: '' })));
+await check('文字列でない写真は弾く',   () => assertFails(setDoc(doc(store, 'trouble_report_photos/n8'), { photo_data: 123 })));
+await check('大きすぎる写真は弾く',     () => assertFails(
+  setDoc(doc(store, 'trouble_report_photos/n7'), { photo_data: 'x'.repeat(1000001) })));
+await check('入れた写真は差し替えられない', () => assertFails(
+  updateDoc(doc(store, 'trouble_report_photos/seed'), { photo_data: 'data:image/jpeg;base64,zzz' })));
+await check('写真は削除できない',       () => assertFails(deleteDoc(doc(store, 'trouble_report_photos/seed'))));
+await check('閲覧は写真を読める',       () => assertSucceeds(getDoc(doc(viewer, 'trouble_report_photos/seed'))));
+await check('閲覧は写真を入れられない', () => assertFails(setDoc(doc(viewer, 'trouble_report_photos/v9'), PHOTO)));
+await check('未ログインは写真を読めない', () => assertFails(getDoc(doc(anon, 'trouble_report_photos/seed'))));
 
 // --- なりすまし・未ログイン ---
 await check('似たアドレスでは書けない', () => assertFails(setDoc(doc(spoof, 'trouble_reports/s1'), REPORT)));
