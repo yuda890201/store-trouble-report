@@ -393,7 +393,7 @@ const PHOTO_MAX_CHARS = 700000;
 let SDK_ERROR = null;
 let initializeApp, getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
     setPersistence, browserLocalPersistence,
-    getFirestore, collection, doc, setDoc, getDoc, updateDoc, query, orderBy, limit,
+    getFirestore, collection, doc, setDoc, updateDoc, query, orderBy, limit,
     onSnapshot, serverTimestamp;
 
 try {
@@ -405,7 +405,7 @@ try {
   ({ initializeApp } = appModule);
   ({ getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
      setPersistence, browserLocalPersistence } = authModule);
-  ({ getFirestore, collection, doc, setDoc, getDoc, updateDoc, query, orderBy, limit,
+  ({ getFirestore, collection, doc, setDoc, updateDoc, query, orderBy, limit,
      onSnapshot, serverTimestamp } = storeModule);
 } catch (err) {
   SDK_ERROR = err;
@@ -564,8 +564,6 @@ const I18N = {
     take_photo: "撮影する", from_album: "アルバム", compressing: "圧縮しています…",
     photo_full: "写真は1枚までです", photo_too_big: "画像が大きすぎます。別の写真でお試しください",
     photo_read_fail: "画像を読み込めませんでした", photo_parse_fail: "画像を解析できませんでした",
-    show_photo: "写真を見る", photo_loading: "読み込んでいます…",
-    photo_load_fail: "写真を読み込めませんでした",
 
     detail: "トラブル詳細", detail_ph: "具体的な状況を記入してください",
     add_situation: "状況を追加",
@@ -659,8 +657,6 @@ const I18N = {
     take_photo: "Take photo", from_album: "From album", compressing: "Compressing…",
     photo_full: "Only one photo can be attached", photo_too_big: "Image is too large. Try another photo",
     photo_read_fail: "Could not read the image", photo_parse_fail: "Could not process the image",
-    show_photo: "Show photo", photo_loading: "Loading…",
-    photo_load_fail: "Could not load the photo",
 
     detail: "What happened", detail_ph: "Describe what you saw",
     add_situation: "Add a note",
@@ -754,8 +750,6 @@ const I18N = {
     take_photo: "फोटो खिच्ने", from_album: "एल्बमबाट", compressing: "मिलाउँदै…",
     photo_full: "एउटा मात्र फोटो राख्न मिल्छ", photo_too_big: "फोटो धेरै ठूलो छ। अर्को प्रयास गर्नुहोस्",
     photo_read_fail: "फोटो पढ्न सकिएन", photo_parse_fail: "फोटो प्रशोधन गर्न सकिएन",
-    show_photo: "फोटो हेर्ने", photo_loading: "ल्याउँदै…",
-    photo_load_fail: "फोटो ल्याउन सकिएन",
 
     detail: "के भयो", detail_ph: "के देख्नुभयो लेख्नुहोस्",
     add_situation: "अवस्था थप्ने",
@@ -1568,9 +1562,9 @@ function renderHistory() {
           </button>
           ${cat ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300">
             <i class="fa-solid ${categoryIcon(d.category)} mr-1"></i>${escapeHTML(cat)}</span>` : ""}
+          ${photoBadgeHTML(d)}
           <span class="ml-auto text-[10px] text-slate-500">${escapeHTML(relativeTime(when))}</span>
         </div>
-        ${photoHTML(d)}
         <p class="text-sm leading-relaxed whitespace-pre-wrap break-words">${escapeHTML(d.comment || "")}</p>
         <p class="mt-2 text-[10px] text-slate-500 leading-relaxed">
           ${who ? who + "<br>" : ""}
@@ -1580,46 +1574,18 @@ function renderHistory() {
   }).join("");
 }
 
-// 写真は開いたときだけ読む。一度読んだものは覚えておき、
-// onSnapshot による描き直しで消えたり読み直したりしないようにする。
-const photoCache = new Map();
-
-function showPhotoLabel() {
-  return `<i class="fa-solid fa-image text-orange-400"></i>${escapeHTML(t("show_photo"))}`;
+// 履歴は文章だけを出す。写真は送信先（店舗コミュニケーションアプリなど）で見るものなので、
+// ここでは「付いているかどうか」だけ分かればよい。写真そのものは読みに行かない。
+// photo_data を直接持っているのは、写真を別コレクションに分ける前に送られた古い報告。
+function hasPhoto(d) {
+  return Boolean(d.has_photo || d.photo_data);
 }
 
-function photoHTML(d) {
-  // photo_data を直接持っているのは分離前に送られた古い報告
-  const inline = d.photo_data || photoCache.get(d.id);
-  if (inline) {
-    return `<img src="${escapeHTML(inline)}" alt="" loading="lazy"
-      class="w-full max-h-80 object-contain rounded-xl mb-2 border border-slate-800 bg-black">`;
-  }
-  if (!d.has_photo) return "";
-  return `<button type="button" data-photo-id="${escapeHTML(d.id)}"
-    class="w-full mb-2 py-2.5 rounded-xl bg-slate-800 border border-slate-700 active:bg-slate-700
-           text-slate-200 text-xs font-bold flex items-center justify-center gap-2">
-    ${showPhotoLabel()}</button>`;
+function photoBadgeHTML(d) {
+  if (!hasPhoto(d)) return "";
+  return `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-400">
+    <i class="fa-solid fa-image mr-1 text-orange-400"></i>${escapeHTML(t("photo_yes"))}</span>`;
 }
-
-$("history-list").addEventListener("click", async (e) => {
-  const btn = e.target.closest("[data-photo-id]");
-  if (!btn || btn.disabled || !db) return;
-  const id = btn.dataset.photoId;
-  btn.disabled = true;
-  btn.textContent = t("photo_loading");
-  try {
-    const snap = await getDoc(doc(db, PHOTO_COLLECTION, id));
-    const data = snap.exists() ? snap.data().photo_data : "";
-    if (!data) throw new Error(t("photo_load_fail"));
-    photoCache.set(id, data);
-    renderHistory();
-  } catch (err) {
-    btn.disabled = false;
-    btn.innerHTML = showPhotoLabel();
-    toast(err.code === "permission-denied" ? t("no_permission") : t("photo_load_fail"), "err");
-  }
-});
 
 // 履歴カードのバッジをタップして 未対応 → 対応中 → 完了 と進める
 $("history-list").addEventListener("click", async (e) => {
@@ -1649,7 +1615,7 @@ function reportToText(d) {
     [d.store_name, d.reporter].filter(Boolean).join(" / "),
     (d.comment || "").trim(),
   ];
-  if (d.photo_data || d.has_photo) lines.push("(写真あり)");
+  if (hasPhoto(d)) lines.push("(写真あり)");
   return lines.filter(Boolean).join("\n");
 }
 
