@@ -158,7 +158,7 @@ const FIREBASE_CONFIG = {
 | `category` | string | カテゴリ。設備の場合は `店舗設備・什器` が入ります |
 | `quick_trouble_preset` | string | 選んだ症状。設備や自由入力の場合は空文字 |
 | `reporter` | string | 報告者名（必須） |
-| `store_name` | string | 設定画面で登録した店舗名 |
+| `store_name` | string | 設定画面で選んだ店舗名。連動先とはこの文字列の完全一致で突き合わせる |
 | `has_photo` | bool | 写真があるかどうか。本体は別コレクション（下記） |
 | `comment` | string | トラブル詳細（必須） |
 | `report_time` | string | 発生・報告日時（必須、`datetime-local` の値） |

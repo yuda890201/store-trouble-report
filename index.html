@@ -271,10 +271,12 @@
     <label class="text-xs font-bold text-slate-300" data-i18n="language">表示言語</label>
     <div id="lang-switch-settings" class="mt-2 grid grid-cols-3 gap-2"></div>
 
-    <label for="store_name" class="mt-5 block text-xs font-bold text-slate-300" data-i18n="store_name">店舗名</label>
+    <label for="store_pick" class="mt-5 block text-xs font-bold text-slate-300" data-i18n="store_name">店舗名</label>
     <p class="text-[10px] text-slate-500 mt-1 leading-relaxed" data-i18n="store_name_hint">報告と一緒に記録されます。</p>
+    <select id="store_pick"
+      class="mt-2 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-base focus:border-orange-500 focus:outline-none"></select>
     <input type="text" id="store_name" maxlength="40" autocomplete="off" data-i18n-ph="store_name_ph" placeholder="例: 〇〇店"
-      class="mt-2 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-base placeholder:text-slate-600 focus:border-orange-500 focus:outline-none">
+      class="is-hidden mt-2 w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-base placeholder:text-slate-600 focus:border-orange-500 focus:outline-none">
 
     <p class="mt-5 text-xs font-bold text-slate-300" data-i18n="equip_mode">店舗設備を選んだとき</p>
     <p class="text-[10px] text-slate-500 mt-1 leading-relaxed" data-i18n="guide_saved_here">この端末にだけ保存されます</p>
@@ -423,6 +425,10 @@ if (CONFIGURED && !SDK_ERROR) {
 /* ====================== 端末に覚えるもの ====================== */
 const LS_LANG      = "str.lang";
 const LS_STORE     = "str.store_name";
+// 連動先（店舗コミュニケーションアプリ）に登録されている店舗名。
+// 突き合わせは文字列の完全一致なので、手入力させず選ばせる。
+// 店舗が増えたらここに足す。
+const STORES = ["博多住吉通り店", "清川二丁目店"];
 const LS_MAIL      = "str.notify_mail";
 const LS_WEBHOOK   = "str.webhook_endpoint";
 const LS_PHRASES   = "str.saved_phrases";
@@ -600,6 +606,8 @@ const I18N = {
     settings: "設定", store_name: "店舗名",
     store_name_hint: "報告と一緒に記録されます。複数店舗で使うときに、どの店からの報告か分かります。",
     store_name_ph: "例: 〇〇店",
+    store_unset: "選んでください", store_other: "その他（自由入力）",
+    need_store: "店舗名を入力してください",
     notify: "通知先", notify_hint: "登録しておくと、送信後にワンタップでアプリを開けます。",
     notify_mail: "メールアドレス", notify_mail_ph: "you@example.com",
     webhook: "Webhook URL", webhook_hint: "Discord や GAS 向け。分からなければ空欄で構いません。",
@@ -693,6 +701,8 @@ const I18N = {
     settings: "Settings", store_name: "Store name",
     store_name_hint: "Saved with each report, so you can tell which store it came from.",
     store_name_ph: "e.g. Minato",
+    store_unset: "Please choose", store_other: "Other (type it in)",
+    need_store: "Please enter the store name",
     notify: "Notify", notify_hint: "Save these and you can open the app in one tap after sending.",
     notify_mail: "Email address", notify_mail_ph: "you@example.com",
     webhook: "Webhook URL", webhook_hint: "For Discord or GAS. Leave it empty if unsure.",
@@ -786,6 +796,8 @@ const I18N = {
     settings: "सेटिङ", store_name: "पसलको नाम",
     store_name_hint: "हरेक रिपोर्टसँग सुरक्षित हुन्छ, कुन पसलबाट आयो थाहा हुन्छ।",
     store_name_ph: "जस्तै: मिनातो",
+    store_unset: "छान्नुहोस्", store_other: "अन्य (आफैं लेख्ने)",
+    need_store: "पसलको नाम लेख्नुहोस्",
     notify: "खबर पठाउने ठाउँ", notify_hint: "दर्ता गरे पठाएपछि एक ट्यापमा खोल्न सकिन्छ।",
     notify_mail: "इमेल ठेगाना", notify_mail_ph: "you@example.com",
     webhook: "Webhook URL", webhook_hint: "Discord वा GAS का लागि। थाहा नभए खाली छोड्नुहोस्।",
@@ -1365,6 +1377,37 @@ $("btn-now").addEventListener("click", () => {
 });
 
 /* ====================== 設定 ====================== */
+/* ---- 店舗名 ----
+   連動先とは店舗名の文字列そのもので突き合わせる。手で打つと全角スペースなどで
+   ずれるので、一覧から選ばせる。一覧にない店舗のために自由入力も残す。 */
+const STORE_OTHER = "__other__";
+
+function renderStorePick(current) {
+  const known = STORES.includes(current);
+  const opts = [`<option value="">${escapeHTML(t("store_unset"))}</option>`];
+  for (const name of STORES) {
+    opts.push(`<option value="${escapeHTML(name)}"${name === current ? " selected" : ""}>${escapeHTML(name)}</option>`);
+  }
+  // 一覧にない値が入っているときは「その他」を選んだ状態にして、そのまま見せる
+  const other = Boolean(current) && !known;
+  opts.push(`<option value="${STORE_OTHER}"${other ? " selected" : ""}>${escapeHTML(t("store_other"))}</option>`);
+  $("store_pick").innerHTML = opts.join("");
+  $("store_name").value = other ? current : "";
+  $("store_name").classList.toggle("is-hidden", !other);
+}
+
+$("store_pick").addEventListener("change", () => {
+  const other = $("store_pick").value === STORE_OTHER;
+  $("store_name").classList.toggle("is-hidden", !other);
+  if (other) $("store_name").focus();
+});
+
+function storeNameValue() {
+  const picked = $("store_pick").value;
+  if (picked === STORE_OTHER) return $("store_name").value.trim();
+  return picked;
+}
+
 function renderEquipModeSwitch() {
   const current = $("equip-mode-switch").dataset.value || equipMode();
   $("equip-mode-switch").dataset.value = current;
@@ -1409,7 +1452,7 @@ $("btn-guide-image-clear").addEventListener("click", () => {
 });
 
 $("btn-settings").addEventListener("click", () => {
-  $("store_name").value       = lsGet(LS_STORE, "");
+  renderStorePick(lsGet(LS_STORE, ""));
   $("guide_text").value       = guideText();
   $("equip-mode-switch").dataset.value    = equipMode();
   $("guide-image-preview").dataset.value  = guideImage();
@@ -1429,10 +1472,13 @@ $("settings-modal").addEventListener("click", (e) => {
 $("btn-settings-save").addEventListener("click", () => {
   const url  = $("webhook_endpoint").value.trim();
   const mail = $("notify_mail").value.trim();
+  if ($("store_pick").value === STORE_OTHER && !$("store_name").value.trim()) {
+    toast(t("need_store"), "err"); $("store_name").focus(); return;
+  }
   if (url && !/^https:\/\//i.test(url)) { toast(t("need_https"), "err"); return; }
   if (mail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)) { toast(t("bad_mail"), "err"); return; }
   const image = $("guide-image-preview").dataset.value || "";
-  lsSet(LS_STORE,   $("store_name").value.trim());
+  lsSet(LS_STORE,   storeNameValue());
   lsSet(LS_MAIL,    mail);
   lsSet(LS_WEBHOOK, url);
   lsSet(LS_EQUIP_MODE, $("equip-mode-switch").dataset.value || "guide");
@@ -1800,7 +1846,10 @@ function resetForm() {
 
 /* ====================== 言語を変えたときの描き直し ====================== */
 function redrawAll() {
-  if (!$("settings-modal").classList.contains("is-hidden")) renderEquipModeSwitch();
+  if (!$("settings-modal").classList.contains("is-hidden")) {
+    renderEquipModeSwitch();
+    renderStorePick(storeNameValue());
+  }
   renderFixedChips();
   renderSavedChips();
   renderReporterChips();
