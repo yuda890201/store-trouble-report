@@ -95,7 +95,10 @@ powershell -ExecutionPolicy Bypass -File tools\finish-integration.ps1
 | `trouble_reports/{id}` | 報告本体。`has_photo: true/false` を持つ | 1 件 1 KB 程度 |
 | `trouble_report_photos/{id}` | `photo_data` だけ。**ID は報告と同じ** | 1 件 最大 700 KB |
 
-一覧は本体だけを読むので 50 件で 50 KB 程度になる。写真は詳細を見たいときに 1 件だけ読む。
+一覧は本体だけを読むので 50 件で 50 KB 程度になる。
+
+**不具合報告アプリ自身は写真を読まない。** 履歴には文章と「写真あり」の表示だけを出す。
+写真を見るのは受け取る側の役目、という整理にした。読むのは店舗コミュニケーションアプリだけ。
 
 ### 書き込みの順番
 
