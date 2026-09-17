@@ -19,7 +19,7 @@ const store = [
   {
     __id: newId(),
     target_type: "自作・業務アプリ", category: "入力・保存",
-    quick_trouble_preset: "保存できない",
+    app_name: "金庫アプリ", quick_trouble_preset: "保存できない",
     reporter: "田中", store_name: "みなと店", has_photo: false,
     comment: "保存できません。\n営業に支障あり\n今も続いている",
     report_time: localValue(38), webhook_endpoint: "",
@@ -28,7 +28,7 @@ const store = [
   {
     __id: newId(),
     target_type: "自作・業務アプリ", category: "動作・その他",
-    quick_trouble_preset: "固まる",
+    app_name: "シフト管理アプリ", quick_trouble_preset: "固まる",
     reporter: "佐藤", store_name: "みなと店", has_photo: false,
     comment: "画面が固まって操作できません。\n毎回起きる",
     report_time: localValue(190), webhook_endpoint: "",

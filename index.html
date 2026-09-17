@@ -121,6 +121,21 @@
           data-i18n="report_anyway">それでも報告する</button>
       </div>
 
+      <!-- STEP : どのアプリか（アプリのみ） -->
+      <div id="step-5" class="step is-hidden">
+        <h2 class="text-base font-bold mb-1" data-i18n="q_app">どのアプリですか？</h2>
+        <p class="text-xs text-slate-400 mb-3" data-i18n="q_app_sub">一覧にないものは「その他」から書けます</p>
+        <div id="grid-app" class="space-y-1.5"></div>
+        <div id="app-other-box" class="is-hidden mt-3">
+          <input type="text" id="app_other" maxlength="40" autocomplete="off"
+            data-i18n-ph="app_other_ph" placeholder="アプリの名前"
+            class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-base placeholder:text-slate-600 focus:border-orange-500 focus:outline-none">
+          <button type="button" id="btn-app-other-ok"
+            class="mt-2 w-full py-3 bg-orange-600 active:bg-orange-700 text-white font-bold rounded-xl text-sm"
+            data-i18n="next">次へ</button>
+        </div>
+      </div>
+
       <!-- STEP 2 : カテゴリ（アプリのみ） -->
       <div id="step-1" class="step is-hidden">
         <h2 class="text-base font-bold mb-1" data-i18n="q_category">どの機能ですか？</h2>
@@ -236,6 +251,8 @@
       </div>
       <div class="mb-3 space-y-2">
         <div id="filter-status" class="flex gap-1.5"></div>
+        <select id="filter-app" aria-label="アプリで絞り込む"
+          class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2.5 text-base focus:border-orange-500 focus:outline-none"></select>
         <select id="filter-category" aria-label="カテゴリで絞り込む"
           class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2.5 text-base focus:border-orange-500 focus:outline-none"></select>
       </div>
@@ -623,6 +640,9 @@ const I18N = {
 
     step_guide: "案内",
     q_guide: "設備の問い合わせ", q_guide_sub: "下の案内にしたがって連絡してください",
+    step_app: "アプリ", q_app: "どのアプリですか？", q_app_sub: "一覧にないものは「その他」から書けます",
+    app_other: "その他", app_other_ph: "アプリの名前", need_app: "アプリの名前を入力してください",
+    f_all_app: "すべてのアプリ", next: "次へ",
     guide_clear_image: "画像を削除",
     equip_mode: "店舗設備を選んだとき",
     equip_guide: "案内を表示する", equip_report: "報告する（今までどおり）",
@@ -632,6 +652,7 @@ const I18N = {
     report_anyway: "それでも報告する",
     guide_saved_here: "この端末にだけ保存されます",
     subject: "【トラブル報告】",
+    l_app: "アプリ",
     l_store: "店舗", l_reporter: "報告者", l_target: "対象", l_category: "カテゴリ",
     l_symptom: "症状", l_when: "発生", l_status: "状態", l_photo: "写真",
   },
@@ -718,6 +739,9 @@ const I18N = {
 
     step_guide: "Guide",
     q_guide: "Equipment enquiries", q_guide_sub: "Please follow the guidance below",
+    step_app: "App", q_app: "Which app?", q_app_sub: "Not listed? Use \u0022Other\u0022",
+    app_other: "Other", app_other_ph: "App name", need_app: "Please enter the app name",
+    f_all_app: "All apps", next: "Next",
     guide_clear_image: "Remove image",
     equip_mode: "When store equipment is chosen",
     equip_guide: "Show the guide", equip_report: "File a report (as before)",
@@ -727,6 +751,7 @@ const I18N = {
     report_anyway: "File a report anyway",
     guide_saved_here: "Saved on this device only",
     subject: "[Trouble report] ",
+    l_app: "App",
     l_store: "Store", l_reporter: "Reported by", l_target: "Type", l_category: "Area",
     l_symptom: "Symptom", l_when: "When", l_status: "Status", l_photo: "Photo",
   },
@@ -813,6 +838,9 @@ const I18N = {
 
     step_guide: "जानकारी",
     q_guide: "सामानको बारेमा सोध्ने", q_guide_sub: "तलको जानकारी अनुसार सम्पर्क गर्नुहोस्",
+    step_app: "एप", q_app: "कुन एप हो?", q_app_sub: "सूचीमा नभए \u0022अन्य\u0022 बाट लेख्नुहोस्",
+    app_other: "अन्य", app_other_ph: "एपको नाम", need_app: "एपको नाम लेख्नुहोस्",
+    f_all_app: "सबै एप", next: "अर्को",
     guide_clear_image: "फोटो हटाउने",
     equip_mode: "पसलका सामान छानेपछि",
     equip_guide: "जानकारी देखाउने", equip_report: "रिपोर्ट गर्ने (पहिलेजस्तै)",
@@ -822,6 +850,7 @@ const I18N = {
     report_anyway: "तैपनि रिपोर्ट गर्ने",
     guide_saved_here: "यो यन्त्रमा मात्र सुरक्षित हुन्छ",
     subject: "[समस्या रिपोर्ट] ",
+    l_app: "एप",
     l_store: "पसल", l_reporter: "रिपोर्ट गर्ने", l_target: "प्रकार", l_category: "भाग",
     l_symptom: "लक्षण", l_when: "कहिले", l_status: "अवस्था", l_photo: "फोटो",
   },
@@ -847,6 +876,25 @@ const TARGET_TYPES = [
 ];
 
 // アプリ不具合のカテゴリ。店舗設備はカテゴリを選ばず自由入力に進む。
+// 報告できるアプリ。店舗のスタッフが見て分かる名前にしてある。
+// 増減はここだけ直せばよい。一覧にないものは「その他」で自由に書ける。
+const APPS = [
+  "店舗コミュニケーションアプリ",
+  "金庫アプリ",
+  "インセンティブ管理アプリ",
+  "シフト管理アプリ",
+  "ワークスケジュールアプリ",
+  "勤怠エラーフィードバックアプリ",
+  "日々の実績入力アプリ",
+  "FF管理アプリ",
+  "売り場添削アプリ",
+  "切手管理アプリ",
+  "秘書アプリ",
+  "バーチャルコンビニ",
+  "不具合報告アプリ",
+];
+const APP_OTHER = "__other_app__";
+
 const CATEGORIES = [
   { value: "起動・ログイン",   icon: "fa-right-from-bracket",
     label: { ja: "起動・ログイン", en: "Startup / Login", ne: "सुरु / लग इन" } },
@@ -1015,11 +1063,12 @@ $("login-form").addEventListener("submit", async (event) => {
    店舗設備はカテゴリも症状も選ばせず、いきなり詳細に進む。
    専用の問い合わせ先が別にあるため、ここで分類させても使い道がない。 */
 const FLOW_EQUIPMENT   = [0, 3];
-const FLOW_APP         = [0, 1, 2, 3];
+const FLOW_APP         = [0, 5, 1, 2, 3];   // 5 = どのアプリか
 const FLOW_EQUIP_GUIDE = [0, 4];   // 案内を出して終わり（報告したい人は step 4 から抜けられる）
 
 const form = {
   target_type: "",
+  app_name: "",
   category: "",
   symptom: "",
   photos: [],          // { dataUrl } を最大 MAX_PHOTOS 件
@@ -1029,7 +1078,7 @@ const MAX_PHOTOS = 1;
 let flow = FLOW_APP;
 let pos  = 0;          // flow の何番目にいるか
 
-const STEP_KEYS = ["step_target", "step_category", "step_symptom", "step_detail", "step_guide"];
+const STEP_KEYS = ["step_target", "step_category", "step_symptom", "step_detail", "step_guide", "step_app"];
 
 function tileHTML({ value, icon, name, desc, selected, wide }) {
   return `
@@ -1055,6 +1104,7 @@ function renderCrumbs() {
   const picked = [];
   const target = TARGET_TYPES.find((x) => x.value === form.target_type);
   if (target) picked.push({ at: 0, text: nameOf(target) });
+  if (form.app_name) picked.push({ at: 5, text: form.app_name });
   const category = CATEGORIES.find((x) => x.value === form.category);
   if (category) picked.push({ at: 1, text: nameOf(category) });
   if (form.symptom) {
@@ -1074,7 +1124,7 @@ function renderCrumbs() {
 
 $("crumbs").addEventListener("click", (e) => {
   const btn = e.target.closest("[data-step]");
-  if (btn) goPos(flow.indexOf(Number(btn.dataset.step)));
+  if (btn) goStep(Number(btn.dataset.step));
 });
 
 function renderTargets() {
@@ -1083,6 +1133,47 @@ function renderTargets() {
                desc: x.desc[lang] || x.desc.ja, selected: form.target_type === x.value })
   ).join("");
 }
+
+function appRowHTML({ value, icon, name, selected }) {
+  return `
+    <button type="button" data-value="${escapeHTML(value)}"
+      class="tile ${selected ? "tile-on" : "border-slate-700 bg-slate-900"}
+             w-full border-2 rounded-xl px-3.5 py-3 flex items-center gap-3 text-left">
+      <i class="fa-solid ${icon} text-orange-400 w-5 text-center"></i>
+      <span class="text-sm font-bold leading-snug">${escapeHTML(name)}</span>
+    </button>`;
+}
+
+function renderApps() {
+  const rows = APPS.map((name) =>
+    appRowHTML({ value: name, icon: "fa-mobile-screen-button", name, selected: form.app_name === name }));
+  rows.push(appRowHTML({ value: APP_OTHER, icon: "fa-pen", name: t("app_other"), selected: false }));
+  $("grid-app").innerHTML = rows.join("");
+  // 一覧にない名前を入れてあるときは、その入力を開いたまま見せる
+  const other = Boolean(form.app_name) && !APPS.includes(form.app_name);
+  $("app_other").value = other ? form.app_name : "";
+  $("app-other-box").classList.toggle("is-hidden", !other);
+}
+
+$("grid-app").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-value]");
+  if (!btn) return;
+  if (btn.dataset.value === APP_OTHER) {
+    show($("app-other-box"));
+    $("app_other").focus();
+    return;
+  }
+  form.app_name = btn.dataset.value;
+  hide($("app-other-box"));
+  goStep(1);
+});
+
+$("btn-app-other-ok").addEventListener("click", () => {
+  const name = $("app_other").value.trim();
+  if (!name) { toast(t("need_app"), "err"); $("app_other").focus(); return; }
+  form.app_name = name;
+  goStep(1);
+});
 
 function renderCategories() {
   $("grid-category").innerHTML = CATEGORIES.map((c) =>
@@ -1108,6 +1199,7 @@ $("grid-target").addEventListener("click", (e) => {
   if (form.target_type === TARGET_EQUIPMENT) {
     // 設備は分類させずに自由入力へ。案内モードなら案内だけを出す。
     flow = equipGuideActive() ? FLOW_EQUIP_GUIDE : FLOW_EQUIPMENT;
+    form.app_name = "";
     form.category = "";
     form.symptom  = "";
   } else {
@@ -1121,7 +1213,7 @@ $("grid-category").addEventListener("click", (e) => {
   if (!btn) return;
   form.category = btn.dataset.value;
   form.symptom = "";
-  goPos(2);
+  goStep(2);
 });
 
 $("grid-symptom").addEventListener("click", (e) => {
@@ -1132,7 +1224,7 @@ $("grid-symptom").addEventListener("click", (e) => {
   const sym = list.find((x) => x.value === form.symptom);
   // 既存の入力を壊さない。空のときだけ定型文を入れる。
   if (sym && sym.template && !$("comment").value.trim()) $("comment").value = sym.template;
-  goPos(3);
+  goStep(3);
 });
 
 /* ====================== 店舗設備の案内 ======================
@@ -1166,8 +1258,15 @@ function renderGuide() {
 
 $("btn-report-anyway").addEventListener("click", () => {
   flow = FLOW_EQUIPMENT;
-  goPos(1);
+  goStep(3);
 });
+
+// goPos は「flow の何番目か」で動く。段を増やすと番号がずれるので、
+// 行き先が決まっている移動は段の ID で指定する。
+function goStep(stepId) {
+  const at = flow.indexOf(stepId);
+  if (at >= 0) goPos(at);
+}
 
 function goPos(next) {
   pos = Math.max(0, Math.min(next, flow.length - 1));
@@ -1182,6 +1281,7 @@ function goPos(next) {
   if (flow[pos] === 1) renderCategories();
   if (flow[pos] === 2) renderSymptoms();
   if (flow[pos] === 4) renderGuide();
+  if (flow[pos] === 5) renderApps();
 
   renderStepBar();
   renderCrumbs();
@@ -1516,7 +1616,7 @@ const STATUS_STYLE = {
 };
 
 let historyDocs = [];
-const filters = { status: "", category: "" };   // 空文字は「すべて」
+const filters = { status: "", category: "", app: "" };   // 空文字は「すべて」
 
 // 保存値（日本語）から、いまの言語の表示名を引く
 function categoryName(value) {
@@ -1562,6 +1662,18 @@ function renderStatusChips() {
 
 function buildFilters() {
   renderStatusChips();
+
+  // アプリは報告に実際に入っている名前から作る。一覧を増やす前の報告も拾える。
+  const appSel = $("filter-app");
+  const keepApp = filters.app;
+  const seen = new Set(historyDocs.map((d) => d.app_name).filter(Boolean));
+  const names = APPS.filter((a) => seen.has(a)).concat([...seen].filter((a) => !APPS.includes(a)).sort());
+  appSel.innerHTML = [`<option value="">${escapeHTML(t("f_all_app"))}</option>`]
+    .concat(names.map((a) => `<option value="${escapeHTML(a)}">${escapeHTML(a)}</option>`)).join("");
+  appSel.value = names.includes(keepApp) ? keepApp : "";
+  if (appSel.value !== keepApp) filters.app = appSel.value;
+  appSel.classList.toggle("is-hidden", names.length === 0);
+
   const sel = $("filter-category");
   const keep = filters.category;
   const opts = [`<option value="">${escapeHTML(t("f_all_category"))}</option>`];
@@ -1579,11 +1691,13 @@ $("filter-status").addEventListener("click", (e) => {
   renderHistory();
 });
 $("filter-category").addEventListener("change", (e) => { filters.category = e.target.value; renderHistory(); });
+$("filter-app").addEventListener("change", (e) => { filters.app = e.target.value; renderHistory(); });
 
 function visibleDocs() {
   return historyDocs.filter((d) =>
     (!filters.status   || (d.status || "未対応") === filters.status) &&
-    (!filters.category || d.category === filters.category));
+    (!filters.category || d.category === filters.category) &&
+    (!filters.app      || d.app_name === filters.app));
 }
 
 function renderHistory() {
@@ -1608,6 +1722,8 @@ function renderHistory() {
           </button>
           ${cat ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300">
             <i class="fa-solid ${categoryIcon(d.category)} mr-1"></i>${escapeHTML(cat)}</span>` : ""}
+          ${d.app_name ? `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-500/15 border border-orange-500/40 text-orange-300">
+            ${escapeHTML(d.app_name)}</span>` : ""}
           ${photoBadgeHTML(d)}
           <span class="ml-auto text-[10px] text-slate-500">${escapeHTML(relativeTime(when))}</span>
         </div>
@@ -1657,7 +1773,7 @@ $("history-list").addEventListener("click", async (e) => {
 function reportToText(d) {
   const when = d.report_time ? d.report_time.replace("T", " ") : "";
   const lines = [
-    `[${when}] ${d.status || "未対応"} / ${d.category || d.target_type || ""}${d.quick_trouble_preset && d.quick_trouble_preset !== FREE_INPUT ? " / " + d.quick_trouble_preset : ""}`,
+    `[${when}] ${d.status || "未対応"} / ${d.app_name ? d.app_name + " / " : ""}${d.category || d.target_type || ""}${d.quick_trouble_preset && d.quick_trouble_preset !== FREE_INPUT ? " / " + d.quick_trouble_preset : ""}`,
     [d.store_name, d.reporter].filter(Boolean).join(" / "),
     (d.comment || "").trim(),
   ];
@@ -1693,6 +1809,7 @@ function startHistory() {
   unsubscribeHistory = onSnapshot(q,
     (snap) => {
       historyDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      buildFilters();   // アプリの選択肢は報告の中身から作るので、届くたびに作り直す
       renderHistory();
     },
     (err) => {
@@ -1716,6 +1833,7 @@ function notifyText(record) {
     `${L("l_reporter")}: ${record.reporter}`,
     `${L("l_target")}: ${categoryName(record.category) || record.target_type}`,
   ];
+  if (record.app_name) rows.push(`${L("l_app")}: ${record.app_name}`);
   const sym = symptomName(record.category, record.quick_trouble_preset);
   if (sym) rows.push(`${L("l_symptom")}: ${sym}`);
   rows.push(`${L("l_when")}: ${record.report_time.replace("T", " ")}`);
@@ -1788,6 +1906,7 @@ $("btn-submit").addEventListener("click", async () => {
     target_type:          form.target_type,
     // 設備はカテゴリを選ばせないので、対象区分をそのままカテゴリとして持つ
     category:             form.target_type === TARGET_EQUIPMENT ? TARGET_EQUIPMENT : form.category,
+    app_name:             form.app_name || "",
     quick_trouble_preset: form.symptom || "",
     reporter,
     store_name:           lsGet(LS_STORE, ""),
@@ -1833,6 +1952,7 @@ $("btn-submit").addEventListener("click", async () => {
 
 function resetForm() {
   form.target_type = "";
+  form.app_name = "";
   form.category = "";
   form.symptom = "";
   flow = FLOW_APP;
@@ -1861,6 +1981,7 @@ function redrawAll() {
   if (flow[pos] === 1) renderCategories();
   if (flow[pos] === 2) renderSymptoms();
   if (flow[pos] === 4) renderGuide();
+  if (flow[pos] === 5) renderApps();
   renderHistory();
   $("submit-label").textContent = t("submit");
 }

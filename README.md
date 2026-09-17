@@ -156,6 +156,7 @@ const FIREBASE_CONFIG = {
 | --- | --- | --- |
 | `target_type` | string | 対象区分（必須） |
 | `category` | string | カテゴリ。設備の場合は `店舗設備・什器` が入ります |
+| `app_name` | string | どのアプリの不具合か。`index.html` の `APPS` から選ぶ。設備の場合は空文字 |
 | `quick_trouble_preset` | string | 選んだ症状。設備や自由入力の場合は空文字 |
 | `reporter` | string | 報告者名（必須） |
 | `store_name` | string | 設定画面で選んだ店舗名。連動先とはこの文字列の完全一致で突き合わせる |
